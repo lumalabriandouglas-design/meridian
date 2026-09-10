@@ -1,0 +1,76 @@
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { StatusBadge } from "@/components/status-badge";
+import { AppShell, PageHeader } from "@/components/layout/app-shell";
+import { Button } from "@/components/ui/button";
+import { grandTotal } from "@/lib/money/calc";
+import { formatMoney } from "@/lib/money/format";
+import { derivedInvoiceStatus, emptyItem, useMoney } from "@/lib/money/store";
+import { addDaysISO, formatDate, todayISO } from "@/lib/utils";
+
+export const Route = createFileRoute("/invoices")({ component: Invoices });
+
+function Invoices() {
+  const invoices = useMoney((s) => s.invoices);
+  const currency = useMoney((s) => s.profile.currency);
+  const saveInvoice = useMoney((s) => s.saveInvoice);
+  const navigate = useNavigate();
+
+  return (
+    <AppShell>
+      <PageHeader
+        kicker="Paper"
+        title="Invoices"
+        description="What they owe. Print it. Mark it paid."
+        actions={
+          <Button
+            onClick={() => {
+              const id = saveInvoice({
+                estimateId: null,
+                clientId: null,
+                clientName: "Client",
+                clientCompany: "",
+                clientEmail: "",
+                issueDate: todayISO(),
+                dueDate: addDaysISO(14),
+                status: "draft",
+                items: [emptyItem()],
+                notes: "",
+                taxPercent: 0,
+              });
+              void navigate({ to: "/invoices/$id", params: { id } });
+            }}
+          >
+            New invoice
+          </Button>
+        }
+      />
+      <ul className="enter enter-2 mx-auto max-w-5xl divide-y divide-border rounded-xl bg-card shadow-[var(--shadow-border)]">
+        {invoices.map((row) => {
+          const status = derivedInvoiceStatus(row);
+          return (
+            <li key={row.id}>
+              <Link
+                to="/invoices/$id"
+                params={{ id: row.id }}
+                className="flex flex-wrap items-center gap-3 px-5 py-4 hover:bg-secondary/50"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">
+                    {row.clientCompany || row.clientName}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {row.number} · due {formatDate(row.dueDate)}
+                  </p>
+                </div>
+                <p className="tabular-nums text-sm">
+                  {formatMoney(grandTotal(row.items, row.taxPercent), currency)}
+                </p>
+                <StatusBadge status={status} />
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </AppShell>
+  );
+}
