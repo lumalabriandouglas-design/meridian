@@ -1,5 +1,40 @@
 import { addDaysISO, todayISO, uid } from "@/lib/utils";
-import type { MoneyState } from "./types";
+import type { MoneyState, Profile, RateInputs } from "./types";
+
+export const DEFAULT_RATE: RateInputs = {
+  monthlyTakeHome: 8_000_000,
+  weeksOff: 4,
+  hoursPerWeek: 30,
+  utilization: 0.65,
+  overheadMonthly: 1_500_000,
+  taxRate: 0.3,
+  profitMargin: 0.2,
+  currentRate: 80_000,
+};
+
+export function emptyDesk(hints?: { name?: string; email?: string }): MoneyState {
+  const profile: Profile = {
+    name: hints?.name?.trim() || "",
+    company: "",
+    email: hints?.email?.trim() || "",
+    phone: "",
+    address: "",
+    city: "Kampala, Uganda",
+    currency: "UGX",
+    paymentTerms: "40% to start, remainder on launch. Estimates valid 14 days.",
+    paymentNote: "",
+    taxId: "",
+    depositPercent: 40,
+  };
+  return {
+    profile,
+    rate: { ...DEFAULT_RATE },
+    clients: [],
+    estimates: [],
+    invoices: [],
+    timeEntries: [],
+  };
+}
 
 export function createSeed(): MoneyState {
   const bintiId = uid();
@@ -27,16 +62,7 @@ export function createSeed(): MoneyState {
       taxId: "",
       depositPercent: 40,
     },
-    rate: {
-      monthlyTakeHome: 8_000_000,
-      weeksOff: 4,
-      hoursPerWeek: 30,
-      utilization: 0.65,
-      overheadMonthly: 1_500_000,
-      taxRate: 0.3,
-      profitMargin: 0.2,
-      currentRate: 80_000,
-    },
+    rate: { ...DEFAULT_RATE },
     clients: [
       {
         id: bintiId,

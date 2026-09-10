@@ -45,31 +45,37 @@ function Invoices() {
         }
       />
       <ul className="enter enter-2 mx-auto max-w-5xl divide-y divide-border rounded-xl bg-card shadow-[var(--shadow-border)]">
-        {invoices.map((row) => {
-          const status = derivedInvoiceStatus(row);
-          return (
-            <li key={row.id}>
-              <Link
-                to="/invoices/$id"
-                params={{ id: row.id }}
-                className="flex flex-wrap items-center gap-3 px-5 py-4 hover:bg-secondary/50"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">
-                    {row.clientCompany || row.clientName}
+        {invoices.length === 0 ? (
+          <li className="px-5 py-10 text-sm text-muted-foreground">
+            No invoices yet. Convert an estimate, or start a blank one.
+          </li>
+        ) : (
+          invoices.map((row) => {
+            const status = derivedInvoiceStatus(row);
+            return (
+              <li key={row.id}>
+                <Link
+                  to="/invoices/$id"
+                  params={{ id: row.id }}
+                  className="flex flex-wrap items-center gap-3 px-5 py-4 hover:bg-secondary/50"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium">
+                      {row.clientCompany || row.clientName}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {row.number} · due {formatDate(row.dueDate)}
+                    </p>
+                  </div>
+                  <p className="tabular-nums text-sm">
+                    {formatMoney(grandTotal(row.items, row.taxPercent), currency)}
                   </p>
-                  <p className="text-sm text-muted-foreground">
-                    {row.number} · due {formatDate(row.dueDate)}
-                  </p>
-                </div>
-                <p className="tabular-nums text-sm">
-                  {formatMoney(grandTotal(row.items, row.taxPercent), currency)}
-                </p>
-                <StatusBadge status={status} />
-              </Link>
-            </li>
-          );
-        })}
+                  <StatusBadge status={status} />
+                </Link>
+              </li>
+            );
+          })
+        )}
       </ul>
     </AppShell>
   );

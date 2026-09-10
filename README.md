@@ -2,11 +2,11 @@
 
 Estimate desk for independents. Prices in **UGX**.
 
-Pick a playbook (website, auto shop, or custom job), send a letterhead estimate, convert it to an invoice, and collect.
+Pick a playbook (website, auto shop, or custom job), send a letterhead estimate, convert it to an invoice, and collect. Each signed-in account has its own desk.
 
 ## Stack
 
-React, TanStack Start, Tailwind. Data stays in the browser (`localStorage`).
+React, TanStack Start, Tailwind. Accounts via Google, X, or email. Data is per-user.
 
 ## Scripts
 
@@ -15,5 +15,3 @@ npm install
 npm run dev
 npm run build
 ```
-
-Dev listens on `0.0.0.0:8080`.

@@ -9,9 +9,13 @@ import {
   Settings,
   Users,
 } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { RedirectToSignIn, UserButton } from "@/lib/auth/gates";
+import { useCurrentUserState } from "@/lib/auth/use-current-user";
+import { useMoney } from "@/lib/money/store";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 type Path =
   | "/"
@@ -37,9 +41,59 @@ const MORE: { to: Path; label: string; icon: typeof Home }[] = [
   { to: "/studio", label: "Studio", icon: Settings },
 ];
 
+function ShellSkeleton() {
+  return (
+    <div className="mx-auto max-w-5xl space-y-4">
+      <div className="h-8 w-40 animate-pulse rounded-md bg-secondary" />
+      <div className="h-40 rounded-xl bg-card" />
+    </div>
+  );
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
-  const [ready, setReady] = useState(false);
-  useEffect(() => setReady(true), []);
+  const { user, isPending } = useCurrentUserState();
+  const deskStatus = useMoney((s) => s.status);
+  const deskError = useMoney((s) => s.error);
+  const load = useMoney((s) => s.load);
+
+  if (isPending) {
+    return (
+      <TooltipProvider>
+        <div className="min-h-dvh bg-background px-4 pt-10 text-foreground">
+          <ShellSkeleton />
+        </div>
+      </TooltipProvider>
+    );
+  }
+  if (!user) return <RedirectToSignIn />;
+  if (deskStatus === "error") {
+    return (
+      <TooltipProvider>
+        <div className="grid min-h-dvh place-items-center bg-background px-6 text-foreground">
+          <div className="max-w-sm text-center">
+            <p className="font-serif text-2xl tracking-tight">Desk didn’t load</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {deskError && deskError !== "Unauthorized"
+                ? deskError
+                : "Sign in again, then retry."}
+            </p>
+            <div className="mt-5 flex justify-center gap-2">
+              <Button onClick={() => void load(user.id)}>Try again</Button>
+            </div>
+          </div>
+        </div>
+      </TooltipProvider>
+    );
+  }
+  if (deskStatus !== "ready") {
+    return (
+      <TooltipProvider>
+        <div className="min-h-dvh bg-background px-4 pt-10 text-foreground">
+          <ShellSkeleton />
+        </div>
+      </TooltipProvider>
+    );
+  }
 
   return (
     <TooltipProvider>
@@ -62,24 +116,22 @@ export function AppShell({ children }: { children: ReactNode }) {
               <NavLink key={item.to} {...item} />
             ))}
           </nav>
+          <div className="account-chip mt-4 border-t border-border px-1 pt-4">
+            <UserButton />
+          </div>
         </aside>
 
         <div className="lg:pl-56">
-          <header className="no-print sticky top-0 z-20 flex items-center justify-between border-b border-border bg-background/90 px-4 py-3 backdrop-blur-sm lg:hidden">
-            <Link to="/" className="font-serif text-xl tracking-tight">
+          <header className="no-print sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-border bg-background/90 px-4 py-3 backdrop-blur-sm lg:hidden">
+            <Link to="/" className="shrink-0 font-serif text-xl tracking-tight">
               Meridian
             </Link>
-            <span className="text-xs text-muted-foreground">UGX</span>
+            <div className="account-chip min-w-0 overflow-hidden [&_span.text-sm.font-medium]:hidden">
+              <UserButton />
+            </div>
           </header>
           <div className="print-root px-4 pb-28 pt-6 sm:px-8 sm:pt-10 lg:pb-12">
-            {ready ? (
-              children
-            ) : (
-              <div className="mx-auto max-w-5xl space-y-4">
-                <div className="h-8 w-40 rounded-md bg-secondary" />
-                <div className="h-40 rounded-xl bg-card" />
-              </div>
-            )}
+            {children}
           </div>
         </div>
 

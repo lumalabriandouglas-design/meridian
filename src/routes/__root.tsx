@@ -6,6 +6,7 @@ import {
 } from "@tanstack/react-router";
 import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
+import { DeskSync } from "@/components/layout/desk-sync";
 import appCss from "../styles.css?url";
 
 const APP_NAME = "Meridian";
@@ -30,8 +31,7 @@ export const Route = createRootRoute({
       { rel: "apple-touch-icon", href: "/__grok/icon-180.png" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       {
-        rel: "preconnect",
-        href: "https://fonts.gstatic.com",
+        rel: "preconnect", href: "https://fonts.gstatic.com",
         crossOrigin: "anonymous",
       },
       {
@@ -48,6 +48,7 @@ export const Route = createRootRoute({
       <body>
         <PreviewHostBridge />
         <AuthProvider>
+          <DeskSync />
           <Outlet />
         </AuthProvider>
         <Scripts />

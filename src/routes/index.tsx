@@ -15,6 +15,7 @@ function Home() {
   const rate = useMoney((s) => s.rate);
   const invoices = useMoney((s) => s.invoices);
   const estimates = useMoney((s) => s.estimates);
+  const resetDemo = useMoney((s) => s.resetDemo);
   const math = computeRates(rate);
   const currency = profile.currency;
 
@@ -45,6 +46,24 @@ function Home() {
           </Button>
         }
       />
+
+      {invoices.length === 0 && estimates.length === 0 ? (
+        <div className="enter enter-2 mx-auto mb-8 max-w-5xl rounded-xl bg-card p-6 shadow-[var(--shadow-border)]">
+          <p className="font-serif text-2xl tracking-tight">Empty desk</p>
+          <p className="mt-2 max-w-lg text-sm leading-relaxed text-muted-foreground">
+            This account has no paper yet. Price a real job, or load the Kampala
+            sample to see how the letterhead works.
+          </p>
+          <div className="mt-5 flex flex-wrap gap-2">
+            <Button asChild>
+              <Link to="/estimate">New estimate</Link>
+            </Button>
+            <Button variant="secondary" onClick={() => resetDemo()}>
+              Load sample desk
+            </Button>
+          </div>
+        </div>
+      ) : null}
 
       <section className="enter enter-2 mx-auto grid max-w-5xl gap-4 lg:grid-cols-12">
         <div className="rounded-xl bg-card p-6 shadow-[var(--shadow-border)] lg:col-span-7">
@@ -137,34 +156,41 @@ function Home() {
           </Button>
         </div>
         <ul className="divide-y divide-border rounded-xl bg-card shadow-[var(--shadow-border)]">
-          {invoices.slice(0, 4).map((inv) => {
-            const status = derivedInvoiceStatus(inv);
-            return (
-              <li key={inv.id}>
-                <Link
-                  to="/invoices/$id"
-                  params={{ id: inv.id }}
-                  className="flex items-center gap-4 px-4 py-4 hover:bg-secondary/50"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium">
-                      {inv.clientCompany || inv.clientName}
+          {invoices.length === 0 ? (
+            <li className="px-5 py-10 text-sm text-muted-foreground">
+              Nothing on paper yet. Price a website or a bay job — it stays on
+              this account.
+            </li>
+          ) : (
+            invoices.slice(0, 4).map((inv) => {
+              const status = derivedInvoiceStatus(inv);
+              return (
+                <li key={inv.id}>
+                  <Link
+                    to="/invoices/$id"
+                    params={{ id: inv.id }}
+                    className="flex items-center gap-4 px-4 py-4 hover:bg-secondary/50"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">
+                        {inv.clientCompany || inv.clientName}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {inv.number} · {formatDate(inv.issueDate)}
+                      </p>
+                    </div>
+                    <p className="tabular-nums text-sm">
+                      {formatMoney(
+                        grandTotal(inv.items, inv.taxPercent),
+                        currency,
+                      )}
                     </p>
-                    <p className="text-sm text-muted-foreground">
-                      {inv.number} · {formatDate(inv.issueDate)}
-                    </p>
-                  </div>
-                  <p className="tabular-nums text-sm">
-                    {formatMoney(
-                      grandTotal(inv.items, inv.taxPercent),
-                      currency,
-                    )}
-                  </p>
-                  <StatusBadge status={status} />
-                </Link>
-              </li>
-            );
-          })}
+                    <StatusBadge status={status} />
+                  </Link>
+                </li>
+              );
+            })
+          )}
         </ul>
       </section>
     </AppShell>

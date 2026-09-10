@@ -87,6 +87,11 @@
   select {
     outline: none;
   }
+
+  .account-chip span.grid.h-8 {
+    background-color: var(--color-secondary);
+    color: var(--color-foreground);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
