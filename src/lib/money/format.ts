@@ -66,3 +66,18 @@ export function nextNumber(prefix: string, existing: string[]): string {
   }
   return `${prefix}-${String(max + 1).padStart(4, "0")}`;
 }
+
+export function paymentMethodLabel(method: string): string {
+  switch (method) {
+    case "momo":
+      return "Mobile money";
+    case "bank":
+      return "Bank transfer";
+    case "cash":
+      return "Cash";
+    case "card":
+      return "Card";
+    default:
+      return "Other";
+  }
+}

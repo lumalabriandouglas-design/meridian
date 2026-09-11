@@ -1,71 +1,110 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, Car, Globe, Plus } from "lucide-react";
-import { AppShell, PageHeader } from "@/components/layout/app-shell";
+import { AppShell, PageHeader, useClientReady } from "@/components/layout/app-shell";
+import { WorkSample } from "@/components/money/work-sample";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
-import { computeRates, grandTotal } from "@/lib/money/calc";
+import { useCurrentUserState } from "@/lib/auth/use-current-user";
+import { amountPaid, computeRates, grandTotal } from "@/lib/money/calc";
 import { formatCompact, formatMoney } from "@/lib/money/format";
 import { derivedInvoiceStatus, useMoney } from "@/lib/money/store";
+import { ADMIN_EMAIL, SHIPPED_WORK } from "@/lib/money/works";
 import { formatDate } from "@/lib/utils";
 
 export const Route = createFileRoute("/")({ component: Home });
 
 function Home() {
+  const { user, isPending } = useCurrentUserState();
+  const mounted = useClientReady();
+  const sessionKnown = mounted && !isPending;
+  const deskReady = useMoney((s) => s.status === "ready" && Boolean(s.ownerId));
   const profile = useMoney((s) => s.profile);
   const rate = useMoney((s) => s.rate);
   const invoices = useMoney((s) => s.invoices);
   const estimates = useMoney((s) => s.estimates);
-  const resetDemo = useMoney((s) => s.resetDemo);
   const math = computeRates(rate);
-  const currency = profile.currency;
+  const currency = profile.currency || "UGX";
+  const showDesk = Boolean(user && deskReady);
 
-  const outstanding = invoices
-    .filter((i) => derivedInvoiceStatus(i) !== "paid")
-    .reduce((s, i) => s + grandTotal(i.items, i.taxPercent), 0);
-  const collected = invoices
-    .filter((i) => i.status === "paid")
-    .reduce((s, i) => s + grandTotal(i.items, i.taxPercent), 0);
+  const outstanding = invoices.reduce((s, i) => {
+    if (derivedInvoiceStatus(i) === "paid") return s;
+    const total = grandTotal(i.items, i.taxPercent);
+    return s + Math.max(0, total - amountPaid(i.payments));
+  }, 0);
+  const collected = invoices.reduce(
+    (s, i) => s + amountPaid(i.payments),
+    0,
+  );
   const openEstimates = estimates.filter(
     (e) => e.status === "sent" || e.status === "draft",
   ).length;
 
   const recommended = Math.round(math.recommended / 1000) * 1000;
+  const [featured, ...rest] = SHIPPED_WORK;
 
   return (
-    <AppShell>
+    <AppShell requireAuth={false}>
       <PageHeader
-        kicker={profile.city || "Kampala"}
-        title={profile.company || "Meridian"}
-        description="Someone asks how much. You send a number that protects your time — in UGX."
+        kicker="Kampala, Uganda"
+        title="Luma Labrian"
+        description="Websites and apps already shipped, with the price in UGX. Open a sample, then send the next client a number from work like this — not a guess."
         actions={
-          <Button asChild>
-            <Link to="/estimate">
-              New estimate
-              <ArrowRight />
-            </Link>
-          </Button>
+          <>
+            <a
+              href={`mailto:${ADMIN_EMAIL}`}
+              className="inline-flex h-11 max-w-full items-center truncate text-sm text-muted-foreground hover:text-foreground"
+            >
+              {ADMIN_EMAIL}
+            </a>
+            {sessionKnown ? (
+              showDesk ? (
+              <Button asChild>
+                <Link to="/estimate">
+                  New estimate
+                  <ArrowRight />
+                </Link>
+              </Button>
+              ) : (
+              <Button asChild>
+                <Link to="/login">Sign in with Google</Link>
+              </Button>
+              )
+            ) : (
+              <div className="h-11 w-40 animate-pulse rounded-md bg-secondary" />
+            )}
+          </>
         }
       />
 
-      {invoices.length === 0 && estimates.length === 0 ? (
-        <div className="enter enter-2 mx-auto mb-8 max-w-5xl rounded-xl bg-card p-6 shadow-[var(--shadow-border)]">
-          <p className="font-serif text-2xl tracking-tight">Empty desk</p>
-          <p className="mt-2 max-w-lg text-sm leading-relaxed text-muted-foreground">
-            This account has no paper yet. Price a real job, or load the Kampala
-            sample to see how the letterhead works.
-          </p>
-          <div className="mt-5 flex flex-wrap gap-2">
-            <Button asChild>
-              <Link to="/estimate">New estimate</Link>
-            </Button>
-            <Button variant="secondary" onClick={() => resetDemo()}>
-              Load sample desk
-            </Button>
-          </div>
+      <section className="enter enter-2 mx-auto mb-12 max-w-5xl">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-sm font-medium text-muted-foreground">
+            Shipped work, with the price
+          </h2>
+          <Button asChild variant="ghost" size="sm">
+            <Link to="/work">
+              All work
+              <ArrowRight />
+            </Link>
+          </Button>
         </div>
-      ) : null}
+        <div className="grid gap-4 sm:grid-cols-2">
+          {featured ? (
+            <WorkSample
+              job={featured}
+              currency={currency}
+              layout="featured"
+            />
+          ) : null}
+          {rest.map((job) => (
+            <WorkSample key={job.id} job={job} currency={currency} />
+          ))}
+        </div>
+      </section>
 
-      <section className="enter enter-2 mx-auto grid max-w-5xl gap-4 lg:grid-cols-12">
+      {showDesk ? (
+      <>
+      <section className="enter enter-3 mx-auto grid max-w-5xl gap-4 lg:grid-cols-12">
         <div className="rounded-xl bg-card p-6 shadow-[var(--shadow-border)] lg:col-span-7">
           <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
             Recommended rate
@@ -158,8 +197,7 @@ function Home() {
         <ul className="divide-y divide-border rounded-xl bg-card shadow-[var(--shadow-border)]">
           {invoices.length === 0 ? (
             <li className="px-5 py-10 text-sm text-muted-foreground">
-              Nothing on paper yet. Price a website or a bay job — it stays on
-              this account.
+              Nothing on paper yet. Price a website or a bay job.
             </li>
           ) : (
             invoices.slice(0, 4).map((inv) => {
@@ -193,6 +231,8 @@ function Home() {
           )}
         </ul>
       </section>
+      </>
+      ) : null}
     </AppShell>
   );
 }

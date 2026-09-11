@@ -20,7 +20,7 @@ export const Route = createRootRoute({
       {
         name: "description",
         content:
-          "Estimates in Ugandan shillings. For websites, auto shops, and anyone who gets asked how much.",
+          "Luma Labrian — shipped work with prices in UGX, then estimates and invoices.",
       },
       { name: "theme-color", content: "#0B0C0E" },
     ],

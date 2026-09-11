@@ -1,8 +1,8 @@
 import { create } from "zustand";
 import { addDaysISO, todayISO, uid } from "@/lib/utils";
-import { computeRates } from "./calc";
+import { amountPaid, computeRates, grandTotal } from "./calc";
 import { nextNumber } from "./format";
-import { createSeed, emptyDesk } from "./seed";
+import { deskForAccount, emptyDesk } from "./seed";
 import { loadDesk, saveDesk } from "./server";
 import type {
   Client,
@@ -12,6 +12,8 @@ import type {
   InvoiceStatus,
   LineItem,
   MoneyState,
+  Payment,
+  PaymentMethod,
   Profile,
   RateInputs,
   TimeEntry,
@@ -43,6 +45,16 @@ type Actions = {
   updateInvoice: (id: string, patch: Partial<Invoice>) => void;
   deleteInvoice: (id: string) => void;
   convertEstimate: (estimateId: string) => string | null;
+  recordPayment: (
+    invoiceId: string,
+    input: {
+      amount: number;
+      method: PaymentMethod;
+      date?: string;
+      note?: string;
+    },
+  ) => string | null;
+  deletePayment: (invoiceId: string, paymentId: string) => void;
   addTime: (input: Omit<TimeEntry, "id" | "createdAt">) => string;
   updateTime: (id: string, patch: Partial<TimeEntry>) => void;
   toggleTimer: (id: string) => void;
@@ -71,19 +83,45 @@ function snapshot(s: MoneyState): MoneyState {
   };
 }
 
-let persistTimer: ReturnType<typeof setTimeout> | null = null;
+let saveTimer: ReturnType<typeof setTimeout> | null = null;
+let saveSeq = 0;
 
-function persist(get: () => MoneyStore, immediate: boolean) {
+function persist(get: () => MoneyStore, immediate = false) {
   const flush = () => {
-    persistTimer = null;
     const s = get();
     if (s.status !== "ready" || !s.ownerId) return;
-    void saveDesk({ data: snapshot(s) }).catch((err) => {
-      console.error("Meridian desk save failed", err);
+    const n = ++saveSeq;
+    void saveDesk({ data: snapshot(s) }).catch((err: unknown) => {
+      if (n !== saveSeq) return;
+      const message = err instanceof Error ? err.message : "Could not save";
+      useMoney.setState({ error: message });
     });
   };
-  if (persistTimer) clearTimeout(persistTimer);
-  persistTimer = setTimeout(flush, immediate ? 0 : 400);
+  if (immediate) {
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = null;
+    flush();
+    return;
+  }
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    saveTimer = null;
+    flush();
+  }, 400);
+}
+
+function receiptNumbers(invoices: Invoice[]): string[] {
+  return invoices.flatMap((inv) => (inv.payments ?? []).map((p) => p.number));
+}
+
+function withInvoiceStatus(inv: Invoice): Invoice {
+  const total = grandTotal(inv.items, inv.taxPercent);
+  const paid = amountPaid(inv.payments);
+  if (inv.status === "draft" && paid <= 0) return inv;
+  if (total > 0 && paid >= total) return { ...inv, status: "paid" };
+  if (paid > 0) return { ...inv, status: "partial" };
+  if (inv.status === "paid") return { ...inv, status: "sent" };
+  return inv;
 }
 
 export const useMoney = create<MoneyStore>()((set, get) => ({
@@ -93,23 +131,25 @@ export const useMoney = create<MoneyStore>()((set, get) => ({
   error: null,
 
   load: async (ownerId) => {
-    const current = get();
-    if (current.ownerId === ownerId && current.status === "ready") return;
     set({ status: "loading", ownerId, error: null });
     try {
-      const desk = await loadDesk();
-      set({ ...desk, status: "ready", ownerId, error: null });
+      const state = await loadDesk();
+      set({ ...state, status: "ready", ownerId, error: null });
     } catch (err) {
-      set({
-        status: "error",
-        error: err instanceof Error ? err.message : "Could not load the desk",
-      });
+      const message = err instanceof Error ? err.message : "Could not load desk";
+      if (message === "Unauthorized") {
+        set({ ...emptyDesk(), status: "idle", ownerId: null, error: null });
+        return;
+      }
+      set({ status: "error", ownerId, error: message });
     }
   },
 
   clear: () => {
-    if (persistTimer) clearTimeout(persistTimer);
-    persistTimer = null;
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+      saveTimer = null;
+    }
     set({ ...emptyDesk(), status: "idle", ownerId: null, error: null });
   },
 
@@ -205,12 +245,13 @@ export const useMoney = create<MoneyStore>()((set, get) => ({
         "INV",
         get().invoices.map((e) => e.number),
       );
-    const row: Invoice = {
+    const row: Invoice = withInvoiceStatus({
       ...input,
       id,
       number,
+      payments: input.payments ?? current?.payments ?? [],
       createdAt: current?.createdAt ?? todayISO(),
-    };
+    });
     set((s) => ({
       invoices: current
         ? s.invoices.map((e) => (e.id === id ? row : e))
@@ -223,7 +264,7 @@ export const useMoney = create<MoneyStore>()((set, get) => ({
   updateInvoice: (id, patch) => {
     set((s) => ({
       invoices: s.invoices.map((e) =>
-        e.id === id ? { ...e, ...patch } : e,
+        e.id === id ? withInvoiceStatus({ ...e, ...patch }) : e,
       ),
     }));
     persist(get, true);
@@ -252,6 +293,34 @@ export const useMoney = create<MoneyStore>()((set, get) => ({
       items: est.items.map((item) => ({ ...item, id: uid() })),
       notes: est.notes,
       taxPercent: est.taxPercent,
+      payments: [],
+    });
+  },
+
+  recordPayment: (invoiceId, input) => {
+    const inv = get().invoices.find((i) => i.id === invoiceId);
+    if (!inv) return null;
+    const amount = Math.max(0, Math.round(input.amount));
+    if (amount <= 0) return null;
+    const id = uid();
+    const payment: Payment = {
+      id,
+      number: nextNumber("RCP", receiptNumbers(get().invoices)),
+      date: input.date || todayISO(),
+      amount,
+      method: input.method,
+      note: input.note?.trim() || "",
+    };
+    const payments = [...(inv.payments ?? []), payment];
+    get().updateInvoice(invoiceId, { payments });
+    return id;
+  },
+
+  deletePayment: (invoiceId, paymentId) => {
+    const inv = get().invoices.find((i) => i.id === invoiceId);
+    if (!inv) return;
+    get().updateInvoice(invoiceId, {
+      payments: (inv.payments ?? []).filter((p) => p.id !== paymentId),
     });
   },
 
@@ -327,11 +396,17 @@ export const useMoney = create<MoneyStore>()((set, get) => ({
       items,
       notes: "From tracked time.",
       taxPercent: 0,
+      payments: [],
     });
   },
 
   resetDemo: () => {
-    set((s) => ({ ...createSeed(), status: s.status, ownerId: s.ownerId }));
+    const current = get();
+    const next = deskForAccount({
+      name: current.profile.name,
+      email: current.profile.email,
+    });
+    set({ ...next, status: current.status, ownerId: current.ownerId });
     persist(get, true);
   },
 }));
@@ -342,9 +417,17 @@ export function useRecommendedRate(): number {
 }
 
 export function derivedInvoiceStatus(inv: Invoice): InvoiceStatus {
-  if (inv.status === "paid" || inv.status === "draft") return inv.status;
+  const total = grandTotal(inv.items, inv.taxPercent);
+  const paid = amountPaid(inv.payments);
+  if (inv.status === "draft" && paid <= 0) return "draft";
+  if (total > 0 && paid >= total) return "paid";
+  if (paid > 0 && paid < total) {
+    if (inv.dueDate < todayISO()) return "overdue";
+    return "partial";
+  }
+  if (inv.status === "paid") return "paid";
   if (inv.dueDate < todayISO()) return "overdue";
-  return inv.status;
+  return inv.status === "partial" ? "sent" : inv.status;
 }
 
 export { emptyItem };

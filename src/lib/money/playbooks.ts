@@ -355,3 +355,89 @@ export function quoteWebsite(input: WebsiteQuoteInput): WebsiteQuoteResult {
     rush,
   };
 }
+
+export function websiteOutcomeLines(
+  quoted: WebsiteQuoteResult,
+  pages: number,
+): { id: string; description: string; listPrice: number }[] {
+  const lines: { id: string; description: string; listPrice: number }[] = [
+    {
+      id: "type",
+      description: `${quoted.type.name} — ${quoted.type.blurb.replace(/\.$/, "")}`,
+      listPrice: quoted.type.listPrice,
+    },
+  ];
+  if (quoted.extraPages > 0) {
+    lines.push({
+      id: "pages",
+      description: `${quoted.extraPages} extra page${quoted.extraPages === 1 ? "" : "s"} — ${pages} in total, ${quoted.type.pagesIncluded} included`,
+      listPrice: quoted.extraPages * EXTRA_PAGE_PRICE,
+    });
+  }
+  for (const f of quoted.features) {
+    lines.push({
+      id: f.id,
+      description: `${f.name} — ${f.blurb.replace(/\.$/, "")}`,
+      listPrice: f.listPrice,
+    });
+  }
+  if (quoted.rush) {
+    const base = lines.reduce((s, l) => s + l.listPrice, 0);
+    lines.push({
+      id: "rush",
+      description: "Rush — ready in under 2 weeks",
+      listPrice: Math.round(base * (RUSH_FACTOR - 1)),
+    });
+  }
+  return lines;
+}
+
+export function scaleOutcomeLines(
+  lines: { id: string; description: string; listPrice: number }[],
+  target: number,
+): { id: string; description: string; quantity: number; rate: number }[] {
+  const goal = Math.max(0, Math.round(target));
+  if (!lines.length) {
+    return [{ id: "pkg", description: "Website", quantity: 1, rate: goal }];
+  }
+  const sum = lines.reduce((s, l) => s + l.listPrice, 0);
+  if (sum <= 0) {
+    return lines.map((l, i) => ({
+      id: l.id,
+      description: l.description,
+      quantity: 1,
+      rate: i === 0 ? goal : 0,
+    }));
+  }
+  const rates = lines.map((l, i) =>
+    i === lines.length - 1 ? 0 : Math.round((l.listPrice / sum) * goal),
+  );
+  const head = rates.reduce((s, n) => s + n, 0);
+  rates[rates.length - 1] = goal - head;
+  return lines.map((l, i) => ({
+    id: l.id,
+    description: l.description,
+    quantity: 1,
+    rate: rates[i],
+  }));
+}
+
+export function websiteOutcomeNotes(
+  quoted: WebsiteQuoteResult,
+  pages: number,
+): string {
+  const parts = [
+    `This covers a ${quoted.type.name.toLowerCase()}: ${quoted.type.blurb.replace(/\.$/, "")}.`,
+  ];
+  if (quoted.extraPages) {
+    parts.push(`${pages} pages in total.`);
+  }
+  if (quoted.features.length) {
+    parts.push(
+      `It will also: ${quoted.features.map((f) => f.name.toLowerCase()).join(", ")}.`,
+    );
+  }
+  if (quoted.rush) parts.push("Rush — under two weeks.");
+  parts.push("40% to start, remainder on launch.");
+  return parts.join(" ");
+}

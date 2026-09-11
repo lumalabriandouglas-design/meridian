@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { DocumentPaper } from "@/components/document/paper";
 import { AppShell, PageHeader } from "@/components/layout/app-shell";
+import { ClientPicker } from "@/components/money/client-picker";
 import { MoneyField } from "@/components/money-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { computeRates } from "@/lib/money/calc";
 import { formatHours, formatMoney, roundUgxNice } from "@/lib/money/format";
 import { AUTO_JOBS } from "@/lib/money/playbooks";
-import type { LineItem } from "@/lib/money/types";
+import type { ClientDraft, LineItem } from "@/lib/money/types";
 import { useMoney } from "@/lib/money/store";
 import { addDaysISO, cn, todayISO, uid } from "@/lib/utils";
 
@@ -27,9 +28,13 @@ function AutoEstimate() {
   const recommended = Math.round(computeRates(rate).recommended / 1000) * 1000;
 
   const [jobId, setJobId] = useState("brakes-f");
+  const [client, setClient] = useState<ClientDraft>({
+    clientId: null,
+    clientName: "",
+    clientCompany: "",
+    clientEmail: "",
+  });
   const [vehicle, setVehicle] = useState("");
-  const [owner, setOwner] = useState("");
-  const [email, setEmail] = useState("");
   const [hours, setHours] = useState<number | null>(null);
   const [labor, setLabor] = useState<number | null>(null);
   const [parts, setParts] = useState<{ id: string; name: string; cost: number }[]>(
@@ -88,19 +93,20 @@ function AutoEstimate() {
   }
 
   function save() {
-    const clientId = owner.trim()
+    const clientId = client.clientName.trim()
       ? upsertClient({
-          name: owner.trim(),
-          company: vehicle.trim(),
-          email: email.trim(),
+          id: client.clientId ?? undefined,
+          name: client.clientName.trim(),
+          company: vehicle.trim() || client.clientCompany.trim(),
+          email: client.clientEmail.trim(),
         })
       : null;
     const id = saveEstimate({
       kind: "auto",
       clientId,
-      clientName: owner.trim() || "Customer",
-      clientCompany: vehicle.trim(),
-      clientEmail: email.trim(),
+      clientName: client.clientName.trim() || "Customer",
+      clientCompany: vehicle.trim() || client.clientCompany.trim(),
+      clientEmail: client.clientEmail.trim(),
       issueDate: todayISO(),
       validUntil: addDaysISO(7),
       status: "draft",
@@ -148,17 +154,15 @@ function AutoEstimate() {
           </section>
 
           <section className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <Label htmlFor="owner">Customer</Label>
-              <Input
-                id="owner"
-                className="mt-2"
-                placeholder="Grace Atim"
-                value={owner}
-                onChange={(e) => setOwner(e.target.value)}
+            <div className="sm:col-span-2">
+              <ClientPicker
+                value={client}
+                onChange={setClient}
+                nameLabel="Customer"
+                companyLabel="Company"
               />
             </div>
-            <div>
+            <div className="sm:col-span-2">
               <Label htmlFor="vehicle">Vehicle</Label>
               <Input
                 id="vehicle"
@@ -166,15 +170,6 @@ function AutoEstimate() {
                 placeholder="Toyota Premio 2016"
                 value={vehicle}
                 onChange={(e) => setVehicle(e.target.value)}
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <Label htmlFor="em">Phone or email</Label>
-              <Input
-                id="em"
-                className="mt-2"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
               />
             </div>
           </section>
@@ -306,9 +301,9 @@ function AutoEstimate() {
             doc={{
               kindLabel: "Estimate",
               number: "EST-preview",
-              clientName: owner || "Customer",
-              clientCompany: vehicle,
-              clientEmail: email,
+              clientName: client.clientName || "Customer",
+              clientCompany: vehicle || client.clientCompany,
+              clientEmail: client.clientEmail,
               issueDate: todayISO(),
               untilLabel: "Valid until",
               untilDate: addDaysISO(7),

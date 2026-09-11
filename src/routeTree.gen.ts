@@ -18,13 +18,15 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as RateRouteImport } from './routes/rate'
 import { Route as StudioRouteImport } from './routes/studio'
 import { Route as TimeRouteImport } from './routes/time'
+import { Route as WorkRouteImport } from './routes/work'
 import { Route as EstimateIndexRouteImport } from './routes/estimate/index'
 import { Route as EstimateAutoRouteImport } from './routes/estimate/auto'
 import { Route as EstimateCustomRouteImport } from './routes/estimate/custom'
 import { Route as EstimateWebsiteRouteImport } from './routes/estimate/website'
-import { Route as EstimatesIdRouteImport } from './routes/estimates.$id'
-import { Route as InvoicesIdRouteImport } from './routes/invoices.$id'
+import { Route as EstimatesIdRouteImport } from './routes/estimates_.$id'
+import { Route as InvoicesIdRouteImport } from './routes/invoices_.$id'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as InvoicesIdReceiptPaymentIdRouteImport } from './routes/invoices_.$id_.receipt.$paymentId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -71,6 +73,11 @@ const TimeRoute = TimeRouteImport.update({
   path: '/time',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WorkRoute = WorkRouteImport.update({
+  id: '/work',
+  path: '/work',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EstimateIndexRoute = EstimateIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -92,31 +99,38 @@ const EstimateWebsiteRoute = EstimateWebsiteRouteImport.update({
   getParentRoute: () => EstimateRouteRoute,
 } as any)
 const EstimatesIdRoute = EstimatesIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => EstimatesRoute,
+  id: '/estimates_/$id',
+  path: '/estimates/$id',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const InvoicesIdRoute = InvoicesIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => InvoicesRoute,
+  id: '/invoices_/$id',
+  path: '/invoices/$id',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InvoicesIdReceiptPaymentIdRoute =
+  InvoicesIdReceiptPaymentIdRouteImport.update({
+    id: '/invoices_/$id_/receipt/$paymentId',
+    path: '/invoices/$id/receipt/$paymentId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/estimate': typeof EstimateRouteRouteWithChildren
   '/clients': typeof ClientsRoute
-  '/estimates': typeof EstimatesRouteWithChildren
-  '/invoices': typeof InvoicesRouteWithChildren
+  '/estimates': typeof EstimatesRoute
+  '/invoices': typeof InvoicesRoute
   '/login': typeof LoginRoute
   '/rate': typeof RateRoute
   '/studio': typeof StudioRoute
   '/time': typeof TimeRoute
+  '/work': typeof WorkRoute
   '/estimate/auto': typeof EstimateAutoRoute
   '/estimate/custom': typeof EstimateCustomRoute
   '/estimate/website': typeof EstimateWebsiteRoute
@@ -124,16 +138,18 @@ export interface FileRoutesByFullPath {
   '/invoices/$id': typeof InvoicesIdRoute
   '/estimate/': typeof EstimateIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/invoices/$id/receipt/$paymentId': typeof InvoicesIdReceiptPaymentIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/clients': typeof ClientsRoute
-  '/estimates': typeof EstimatesRouteWithChildren
-  '/invoices': typeof InvoicesRouteWithChildren
+  '/estimates': typeof EstimatesRoute
+  '/invoices': typeof InvoicesRoute
   '/login': typeof LoginRoute
   '/rate': typeof RateRoute
   '/studio': typeof StudioRoute
   '/time': typeof TimeRoute
+  '/work': typeof WorkRoute
   '/estimate/auto': typeof EstimateAutoRoute
   '/estimate/custom': typeof EstimateCustomRoute
   '/estimate/website': typeof EstimateWebsiteRoute
@@ -141,25 +157,28 @@ export interface FileRoutesByTo {
   '/invoices/$id': typeof InvoicesIdRoute
   '/estimate': typeof EstimateIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/invoices/$id/receipt/$paymentId': typeof InvoicesIdReceiptPaymentIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/estimate': typeof EstimateRouteRouteWithChildren
   '/clients': typeof ClientsRoute
-  '/estimates': typeof EstimatesRouteWithChildren
-  '/invoices': typeof InvoicesRouteWithChildren
+  '/estimates': typeof EstimatesRoute
+  '/invoices': typeof InvoicesRoute
   '/login': typeof LoginRoute
   '/rate': typeof RateRoute
   '/studio': typeof StudioRoute
   '/time': typeof TimeRoute
+  '/work': typeof WorkRoute
   '/estimate/auto': typeof EstimateAutoRoute
   '/estimate/custom': typeof EstimateCustomRoute
   '/estimate/website': typeof EstimateWebsiteRoute
-  '/estimates/$id': typeof EstimatesIdRoute
-  '/invoices/$id': typeof InvoicesIdRoute
+  '/estimates_/$id': typeof EstimatesIdRoute
+  '/invoices_/$id': typeof InvoicesIdRoute
   '/estimate/': typeof EstimateIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/invoices_/$id_/receipt/$paymentId': typeof InvoicesIdReceiptPaymentIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -173,6 +192,7 @@ export interface FileRouteTypes {
     | '/rate'
     | '/studio'
     | '/time'
+    | '/work'
     | '/estimate/auto'
     | '/estimate/custom'
     | '/estimate/website'
@@ -180,6 +200,7 @@ export interface FileRouteTypes {
     | '/invoices/$id'
     | '/estimate/'
     | '/api/auth/$'
+    | '/invoices/$id/receipt/$paymentId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -190,6 +211,7 @@ export interface FileRouteTypes {
     | '/rate'
     | '/studio'
     | '/time'
+    | '/work'
     | '/estimate/auto'
     | '/estimate/custom'
     | '/estimate/website'
@@ -197,6 +219,7 @@ export interface FileRouteTypes {
     | '/invoices/$id'
     | '/estimate'
     | '/api/auth/$'
+    | '/invoices/$id/receipt/$paymentId'
   id:
     | '__root__'
     | '/'
@@ -208,26 +231,32 @@ export interface FileRouteTypes {
     | '/rate'
     | '/studio'
     | '/time'
+    | '/work'
     | '/estimate/auto'
     | '/estimate/custom'
     | '/estimate/website'
-    | '/estimates/$id'
-    | '/invoices/$id'
+    | '/estimates_/$id'
+    | '/invoices_/$id'
     | '/estimate/'
     | '/api/auth/$'
+    | '/invoices_/$id_/receipt/$paymentId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   EstimateRouteRoute: typeof EstimateRouteRouteWithChildren
   ClientsRoute: typeof ClientsRoute
-  EstimatesRoute: typeof EstimatesRouteWithChildren
-  InvoicesRoute: typeof InvoicesRouteWithChildren
+  EstimatesRoute: typeof EstimatesRoute
+  InvoicesRoute: typeof InvoicesRoute
   LoginRoute: typeof LoginRoute
   RateRoute: typeof RateRoute
   StudioRoute: typeof StudioRoute
   TimeRoute: typeof TimeRoute
+  WorkRoute: typeof WorkRoute
+  EstimatesIdRoute: typeof EstimatesIdRoute
+  InvoicesIdRoute: typeof InvoicesIdRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  InvoicesIdReceiptPaymentIdRoute: typeof InvoicesIdReceiptPaymentIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -295,6 +324,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TimeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/work': {
+      id: '/work'
+      path: '/work'
+      fullPath: '/work'
+      preLoaderRoute: typeof WorkRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/estimate/': {
       id: '/estimate/'
       path: '/'
@@ -323,25 +359,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EstimateWebsiteRouteImport
       parentRoute: typeof EstimateRouteRoute
     }
-    '/estimates/$id': {
-      id: '/estimates/$id'
-      path: '/$id'
+    '/estimates_/$id': {
+      id: '/estimates_/$id'
+      path: '/estimates/$id'
       fullPath: '/estimates/$id'
       preLoaderRoute: typeof EstimatesIdRouteImport
-      parentRoute: typeof EstimatesRoute
+      parentRoute: typeof rootRouteImport
     }
-    '/invoices/$id': {
-      id: '/invoices/$id'
-      path: '/$id'
+    '/invoices_/$id': {
+      id: '/invoices_/$id'
+      path: '/invoices/$id'
       fullPath: '/invoices/$id'
       preLoaderRoute: typeof InvoicesIdRouteImport
-      parentRoute: typeof InvoicesRoute
+      parentRoute: typeof rootRouteImport
     }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
       fullPath: '/api/auth/$'
       preLoaderRoute: typeof ApiAuthSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/invoices_/$id_/receipt/$paymentId': {
+      id: '/invoices_/$id_/receipt/$paymentId'
+      path: '/invoices/$id/receipt/$paymentId'
+      fullPath: '/invoices/$id/receipt/$paymentId'
+      preLoaderRoute: typeof InvoicesIdReceiptPaymentIdRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -365,41 +408,21 @@ const EstimateRouteRouteWithChildren = EstimateRouteRoute._addFileChildren(
   EstimateRouteRouteChildren,
 )
 
-interface EstimatesRouteChildren {
-  EstimatesIdRoute: typeof EstimatesIdRoute
-}
-
-const EstimatesRouteChildren: EstimatesRouteChildren = {
-  EstimatesIdRoute: EstimatesIdRoute,
-}
-
-const EstimatesRouteWithChildren = EstimatesRoute._addFileChildren(
-  EstimatesRouteChildren,
-)
-
-interface InvoicesRouteChildren {
-  InvoicesIdRoute: typeof InvoicesIdRoute
-}
-
-const InvoicesRouteChildren: InvoicesRouteChildren = {
-  InvoicesIdRoute: InvoicesIdRoute,
-}
-
-const InvoicesRouteWithChildren = InvoicesRoute._addFileChildren(
-  InvoicesRouteChildren,
-)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   EstimateRouteRoute: EstimateRouteRouteWithChildren,
   ClientsRoute: ClientsRoute,
-  EstimatesRoute: EstimatesRouteWithChildren,
-  InvoicesRoute: InvoicesRouteWithChildren,
+  EstimatesRoute: EstimatesRoute,
+  InvoicesRoute: InvoicesRoute,
   LoginRoute: LoginRoute,
   RateRoute: RateRoute,
   StudioRoute: StudioRoute,
   TimeRoute: TimeRoute,
+  WorkRoute: WorkRoute,
+  EstimatesIdRoute: EstimatesIdRoute,
+  InvoicesIdRoute: InvoicesIdRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  InvoicesIdReceiptPaymentIdRoute: InvoicesIdReceiptPaymentIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

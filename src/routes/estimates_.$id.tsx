@@ -2,44 +2,47 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { DocumentPaper } from "@/components/document/paper";
 import { AppShell, PageHeader } from "@/components/layout/app-shell";
+import { ClientPicker } from "@/components/money/client-picker";
 import { MoneyField } from "@/components/money-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import type { Invoice, InvoiceStatus, LineItem } from "@/lib/money/types";
-import { derivedInvoiceStatus, emptyItem, useMoney } from "@/lib/money/store";
+import type { Estimate, EstimateStatus, LineItem } from "@/lib/money/types";
+import { emptyItem, useMoney } from "@/lib/money/store";
 
-export const Route = createFileRoute("/invoices/$id")({
-  component: InvoiceDetail,
+export const Route = createFileRoute("/estimates_/$id")({
+  component: EstimateDetail,
 });
 
-const STATUSES: InvoiceStatus[] = ["draft", "sent", "paid", "overdue"];
+const STATUSES: EstimateStatus[] = ["draft", "sent", "accepted", "declined"];
 
-function InvoiceDetail() {
+function EstimateDetail() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
-  const invoice = useMoney((s) => s.invoices.find((e) => e.id === id));
+  const estimate = useMoney((s) => s.estimates.find((e) => e.id === id));
   const profile = useMoney((s) => s.profile);
-  const updateInvoice = useMoney((s) => s.updateInvoice);
-  const deleteInvoice = useMoney((s) => s.deleteInvoice);
+  const updateEstimate = useMoney((s) => s.updateEstimate);
+  const deleteEstimate = useMoney((s) => s.deleteEstimate);
+  const convertEstimate = useMoney((s) => s.convertEstimate);
+  const invoices = useMoney((s) => s.invoices);
 
-  if (!invoice) {
+  if (!estimate) {
     return (
       <AppShell>
-        <PageHeader title="Invoice missing" />
-        <Link to="/invoices" className="text-sm text-muted-foreground">
-          Back to invoices
+        <PageHeader title="Estimate missing" />
+        <Link to="/estimates" className="text-sm text-muted-foreground">
+          Back to estimates
         </Link>
       </AppShell>
     );
   }
 
-  const row = invoice;
-  const status = derivedInvoiceStatus(row);
+  const row = estimate;
+  const existingInv = invoices.find((i) => i.estimateId === row.id);
 
-  function patch(next: Partial<Invoice>) {
-    updateInvoice(id, next);
+  function patch(next: Partial<Estimate>) {
+    updateEstimate(id, next);
   }
 
   function patchItem(itemId: string, next: Partial<LineItem>) {
@@ -53,24 +56,28 @@ function InvoiceDetail() {
       <PageHeader
         kicker={row.number}
         title={row.clientCompany || row.clientName}
-        description={
-          status === "overdue"
-            ? "This one is late. Print it again. Ask once, clearly."
-            : "Collect in UGX. Mark paid when the MoMo hits."
-        }
+        description="Edit, print, or turn this into an invoice when they say yes."
         actions={
           <>
             <Button variant="secondary" onClick={() => window.print()}>
               Print
             </Button>
-            {row.status !== "paid" ? (
-              <Button onClick={() => patch({ status: "paid" })}>Mark paid</Button>
+            {existingInv ? (
+              <Button asChild>
+                <Link to="/invoices/$id" params={{ id: existingInv.id }}>
+                  Open invoice
+                </Link>
+              </Button>
             ) : (
               <Button
-                variant="secondary"
-                onClick={() => patch({ status: "sent" })}
+                onClick={() => {
+                  const invId = convertEstimate(id);
+                  if (invId) {
+                    void navigate({ to: "/invoices/$id", params: { id: invId } });
+                  }
+                }}
               >
-                Mark unpaid
+                Convert to invoice
               </Button>
             )}
           </>
@@ -79,25 +86,24 @@ function InvoiceDetail() {
 
       <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-12">
         <div className="no-print space-y-5 lg:col-span-5">
+          <ClientPicker
+            value={{
+              clientId: row.clientId,
+              clientName: row.clientName,
+              clientCompany: row.clientCompany,
+              clientEmail: row.clientEmail,
+            }}
+            onChange={(next) =>
+              patch({
+                clientId: next.clientId,
+                clientName: next.clientName,
+                clientCompany: next.clientCompany,
+                clientEmail: next.clientEmail,
+              })
+            }
+          />
+
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Client">
-              <Input
-                value={row.clientName}
-                onChange={(e) => patch({ clientName: e.target.value })}
-              />
-            </Field>
-            <Field label="Company">
-              <Input
-                value={row.clientCompany}
-                onChange={(e) => patch({ clientCompany: e.target.value })}
-              />
-            </Field>
-            <Field label="Email" className="col-span-2">
-              <Input
-                value={row.clientEmail}
-                onChange={(e) => patch({ clientEmail: e.target.value })}
-              />
-            </Field>
             <Field label="Issued">
               <Input
                 type="date"
@@ -105,11 +111,11 @@ function InvoiceDetail() {
                 onChange={(e) => patch({ issueDate: e.target.value })}
               />
             </Field>
-            <Field label="Due">
+            <Field label="Valid until">
               <Input
                 type="date"
-                value={row.dueDate}
-                onChange={(e) => patch({ dueDate: e.target.value })}
+                value={row.validUntil}
+                onChange={(e) => patch({ validUntil: e.target.value })}
               />
             </Field>
             <Field label="Status">
@@ -117,7 +123,7 @@ function InvoiceDetail() {
                 className="flex h-11 w-full rounded-md bg-secondary px-3 text-sm shadow-[var(--shadow-border)]"
                 value={row.status}
                 onChange={(e) =>
-                  patch({ status: e.target.value as InvoiceStatus })
+                  patch({ status: e.target.value as EstimateStatus })
                 }
               >
                 {STATUSES.map((s) => (
@@ -187,11 +193,11 @@ function InvoiceDetail() {
           <Button
             variant="ghost"
             onClick={() => {
-              deleteInvoice(id);
-              void navigate({ to: "/invoices" });
+              deleteEstimate(id);
+              void navigate({ to: "/estimates" });
             }}
           >
-            Delete invoice
+            Delete estimate
           </Button>
         </div>
 
@@ -200,17 +206,20 @@ function InvoiceDetail() {
             profile={profile}
             currency={profile.currency}
             doc={{
-              kindLabel: "Invoice",
+              kindLabel: "Estimate",
               number: row.number,
               clientName: row.clientName,
               clientCompany: row.clientCompany,
               clientEmail: row.clientEmail,
               issueDate: row.issueDate,
-              untilLabel: "Due",
-              untilDate: row.dueDate,
+              untilLabel: "Valid until",
+              untilDate: row.validUntil,
               items: row.items,
               notes: row.notes,
               taxPercent: row.taxPercent,
+              depositPercent: row.depositPercent,
+              stackLabel: row.stackLabel,
+              showStack: row.showStack,
             }}
           />
         </div>

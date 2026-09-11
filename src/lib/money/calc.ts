@@ -1,4 +1,4 @@
-import type { LineItem, RateInputs } from "./types";
+import type { Invoice, LineItem, Payment, RateInputs } from "./types";
 
 export type RateResult = {
   billableWeeks: number;
@@ -76,6 +76,19 @@ export function depositDue(
   depositPercent: number,
 ): number {
   return total * (Math.max(0, depositPercent) / 100);
+}
+
+export function amountPaid(payments: Payment[] | undefined): number {
+  if (!payments?.length) return 0;
+  return payments.reduce((sum, p) => sum + Math.max(0, p.amount), 0);
+}
+
+export function invoiceTotal(inv: Pick<Invoice, "items" | "taxPercent">): number {
+  return grandTotal(inv.items, inv.taxPercent);
+}
+
+export function invoiceBalance(inv: Pick<Invoice, "items" | "taxPercent" | "payments">): number {
+  return Math.max(0, invoiceTotal(inv) - amountPaid(inv.payments));
 }
 
 function clamp(n: number, min: number, max: number): number {

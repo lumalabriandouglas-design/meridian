@@ -4,13 +4,32 @@ export type Currency = (typeof CURRENCIES)[number];
 export type EstimateKind = "website" | "auto" | "custom";
 
 export type EstimateStatus = "draft" | "sent" | "accepted" | "declined";
-export type InvoiceStatus = "draft" | "sent" | "paid" | "overdue";
+export type InvoiceStatus = "draft" | "sent" | "partial" | "paid" | "overdue";
+
+export const PAYMENT_METHODS = [
+  { id: "momo", label: "Mobile money" },
+  { id: "bank", label: "Bank transfer" },
+  { id: "cash", label: "Cash" },
+  { id: "card", label: "Card" },
+  { id: "other", label: "Other" },
+] as const;
+
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number]["id"];
 
 export type LineItem = {
   id: string;
   description: string;
   quantity: number;
   rate: number;
+};
+
+export type Payment = {
+  id: string;
+  number: string;
+  date: string;
+  amount: number;
+  method: PaymentMethod;
+  note: string;
 };
 
 export type Profile = {
@@ -83,6 +102,7 @@ export type Invoice = {
   items: LineItem[];
   notes: string;
   taxPercent: number;
+  payments: Payment[];
   createdAt: string;
 };
 
@@ -103,4 +123,11 @@ export type MoneyState = {
   estimates: Estimate[];
   invoices: Invoice[];
   timeEntries: TimeEntry[];
+};
+
+export type ClientDraft = {
+  clientId: string | null;
+  clientName: string;
+  clientCompany: string;
+  clientEmail: string;
 };

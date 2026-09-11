@@ -1,5 +1,6 @@
-import { addDaysISO, todayISO, uid } from "@/lib/utils";
+import { addDaysISO } from "@/lib/utils";
 import type { MoneyState, Profile, RateInputs } from "./types";
+import { ADMIN_EMAIL, SHIPPED_WORK, workLines } from "./works";
 
 export const DEFAULT_RATE: RateInputs = {
   monthlyTakeHome: 8_000_000,
@@ -12,14 +13,20 @@ export const DEFAULT_RATE: RateInputs = {
   currentRate: 80_000,
 };
 
+function seededLines(work: (typeof SHIPPED_WORK)[number], prefix: string) {
+  return workLines(work).map((i, n) => ({ ...i, id: `${prefix}-line-${n}` }));
+}
+
 export function emptyDesk(hints?: { name?: string; email?: string }): MoneyState {
+  const name = hints?.name?.trim() || "";
+  const email = hints?.email?.trim() || "";
   const profile: Profile = {
-    name: hints?.name?.trim() || "",
-    company: "",
-    email: hints?.email?.trim() || "",
+    name,
+    company: name,
+    email,
     phone: "",
     address: "",
-    city: "Kampala, Uganda",
+    city: "",
     currency: "UGX",
     paymentTerms: "40% to start, remainder on launch. Estimates valid 14 days.",
     paymentNote: "",
@@ -36,29 +43,50 @@ export function emptyDesk(hints?: { name?: string; email?: string }): MoneyState
   };
 }
 
+export function deskForAccount(hints?: { name?: string; email?: string }): MoneyState {
+  const email = hints?.email?.trim() || "";
+  if (email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+    const seed = createSeed();
+    return {
+      ...seed,
+      profile: {
+        ...seed.profile,
+        name: hints?.name?.trim() || seed.profile.name,
+        email: email || seed.profile.email,
+      },
+    };
+  }
+  return emptyDesk(hints);
+}
+
 export function createSeed(): MoneyState {
-  const bintiId = uid();
-  const palomaId = uid();
-  const kisaasiId = uid();
-  const estBinti = uid();
-  const invBinti = uid();
-  const invPaloma = uid();
-  const invKisaasi = uid();
-  const estAuto = uid();
-  const estOpen = uid();
+  const binti = SHIPPED_WORK[0];
+  const drape = SHIPPED_WORK[1];
+  const stock = SHIPPED_WORK[2];
+  const hymns = SHIPPED_WORK[3];
+
+  const bintiId = "client-binti";
+  const drapeId = "client-drape";
+  const stockId = "client-stock";
+  const hymnsId = "client-hymns";
+  const estBinti = "est-binti";
+  const estDrape = "est-drape";
+  const invBinti = "inv-binti";
+  const invDrape = "inv-drape";
+  const invStock = "inv-stock";
+  const estHymns = "est-hymns";
 
   return {
     profile: {
-      name: "Apio N.",
-      company: "Apio Studio",
-      email: "hello@apiostudio.ug",
-      phone: "+256 700 418 220",
-      address: "Plot 14, Kira Road",
+      name: "Douglas Luma",
+      company: "Luma Labrian",
+      email: ADMIN_EMAIL,
+      phone: "",
+      address: "",
       city: "Kampala, Uganda",
       currency: "UGX",
       paymentTerms: "40% to start, remainder on launch. Estimates valid 14 days.",
-      paymentNote:
-        "MTN MoMo 0700 418 220 (Apio N.) · Stanbic Bank Uganda, Apio Studio, 9030012345678",
+      paymentNote: "",
       taxId: "",
       depositPercent: 40,
     },
@@ -66,30 +94,39 @@ export function createSeed(): MoneyState {
     clients: [
       {
         id: bintiId,
-        name: "Binti Nakato",
-        company: "Binti",
-        email: "studio@binti.ug",
-        phone: "+256 772 110 440",
-        notes: "Beauty & booking. The site everyone asks for a copy of.",
+        name: "Binti Designs",
+        company: "BINTI DESIGNS",
+        email: "bintidesigns442@gmail.com",
+        phone: "+256 740 711 344",
+        notes: "Kampala atelier. Live: binti-designs.vercel.app",
         createdAt: addDaysISO(-48),
       },
       {
-        id: palomaId,
-        name: "Sam Okello",
-        company: "Paloma Coffee",
-        email: "sam@paloma.coffee",
-        phone: "+256 701 882 119",
-        notes: "Kololo café. Wants a shop next.",
-        createdAt: addDaysISO(-20),
+        id: drapeId,
+        name: "Drapé Collective",
+        company: "Drapé Collective",
+        email: "",
+        phone: "",
+        notes: "Kampala atelier marketplace. Live: odrapecollective.com",
+        createdAt: addDaysISO(-80),
       },
       {
-        id: kisaasiId,
-        name: "Musa Kintu",
-        company: "Kisaasi Motors",
-        email: "musa@kisaasimotors.ug",
-        phone: "+256 759 300 012",
-        notes: "Independent garage. Website + they may use estimates in the bay.",
-        createdAt: addDaysISO(-12),
+        id: stockId,
+        name: "Shop floor",
+        company: "Cloud Stock Manager",
+        email: "",
+        phone: "",
+        notes: "Inventory, sell, reports, team — the shop app.",
+        createdAt: addDaysISO(-30),
+      },
+      {
+        id: hymnsId,
+        name: "Anglican hymnal",
+        company: "Anglican Hymn Sync",
+        email: "",
+        phone: "",
+        notes: "Luganda + English. Live: anglicanhymn-sync.vercel.app",
+        createdAt: addDaysISO(-20),
       },
     ],
     estimates: [
@@ -98,108 +135,63 @@ export function createSeed(): MoneyState {
         number: "EST-0108",
         kind: "website",
         clientId: bintiId,
-        clientName: "Binti Nakato",
-        clientCompany: "Binti",
-        clientEmail: "studio@binti.ug",
+        clientName: "Binti Designs",
+        clientCompany: "BINTI DESIGNS",
+        clientEmail: "bintidesigns442@gmail.com",
         issueDate: addDaysISO(-40),
         validUntil: addDaysISO(-26),
         status: "accepted",
-        items: [
-          {
-            id: uid(),
-            description: "Business website — 6 pages, booking, blog",
-            quantity: 1,
-            rate: 4_800_000,
-          },
-          {
-            id: uid(),
-            description: "Mobile money checkout",
-            quantity: 1,
-            rate: 350_000,
-          },
-        ],
+        items: seededLines(binti, "est-binti"),
         notes:
-          "Site like the one we shipped: story, services, booking, blog. Copy and photo direction included. 40% to start.",
+          "Site like the one we shipped: story, looks, WhatsApp. Public floor stays quiet. 40% to start.",
         taxPercent: 0,
         depositPercent: 40,
-        stackLabel: "Custom build",
+        stackLabel: "",
         showStack: false,
         hours: 48,
         createdAt: addDaysISO(-40),
       },
       {
-        id: estOpen,
-        number: "EST-0112",
+        id: estDrape,
+        number: "EST-0102",
         kind: "website",
-        clientId: palomaId,
-        clientName: "Sam Okello",
-        clientCompany: "Paloma Coffee",
-        clientEmail: "sam@paloma.coffee",
-        issueDate: addDaysISO(-4),
-        validUntil: addDaysISO(10),
-        status: "sent",
-        items: [
-          {
-            id: uid(),
-            description: "Online shop — catalogue, cart, checkout",
-            quantity: 1,
-            rate: 7_500_000,
-          },
-          {
-            id: uid(),
-            description: "Mobile money + card payments",
-            quantity: 1,
-            rate: 1_150_000,
-          },
-        ],
+        clientId: drapeId,
+        clientName: "Drapé Collective",
+        clientCompany: "Drapé Collective",
+        clientEmail: "",
+        issueDate: addDaysISO(-70),
+        validUntil: addDaysISO(-56),
+        status: "accepted",
+        items: seededLines(drape, "est-drape"),
         notes:
-          "Shop for beans and drip kits. They keep editing products. Estimate valid 14 days.",
+          "Marketplace for Kampala ateliers. Catalogue, showrooms, a bag. Remainder on launch.",
         taxPercent: 0,
         depositPercent: 40,
-        stackLabel: "Shopify",
-        showStack: true,
-        hours: 70,
-        createdAt: addDaysISO(-4),
-      },
-      {
-        id: estAuto,
-        number: "EST-0113",
-        kind: "auto",
-        clientId: kisaasiId,
-        clientName: "Grace Atim",
-        clientCompany: "Toyota Premio 2016",
-        clientEmail: "grace@mail.com",
-        issueDate: todayISO(),
-        validUntil: addDaysISO(7),
-        status: "draft",
-        items: [
-          {
-            id: uid(),
-            description: "Front brake pads — labour",
-            quantity: 1,
-            rate: 120_000,
-          },
-          {
-            id: uid(),
-            description: "Front pad set",
-            quantity: 1,
-            rate: 180_000,
-          },
-          {
-            id: uid(),
-            description: "Disc skim (pair)",
-            quantity: 1,
-            rate: 80_000,
-          },
-        ],
-        notes:
-          "Pads are done. Discs have a lip — skim recommended. Parts are genuine-spec, not the cheapest in Kisekka.",
-        taxPercent: 0,
-        depositPercent: 0,
         stackLabel: "",
         showStack: false,
-        hours: 2,
-        createdAt: todayISO(),
+        hours: 96,
+        createdAt: addDaysISO(-70),
+      },
+      {
+        id: estHymns,
+        number: "EST-0114",
+        kind: "custom",
+        clientId: hymnsId,
+        clientName: "Anglican hymnal",
+        clientCompany: "Anglican Hymn Sync",
+        clientEmail: "",
+        issueDate: addDaysISO(-12),
+        validUntil: addDaysISO(2),
+        status: "sent",
+        items: seededLines(hymns, "est-hymns"),
+        notes:
+          "Luganda and English from one codebase. Audio and setlists. Extra language is the hymnal itself.",
+        taxPercent: 0,
+        depositPercent: 40,
+        stackLabel: "",
+        showStack: false,
+        hours: 70,
+        createdAt: addDaysISO(-12),
       },
     ],
     invoices: [
@@ -208,82 +200,101 @@ export function createSeed(): MoneyState {
         number: "INV-0041",
         estimateId: estBinti,
         clientId: bintiId,
-        clientName: "Binti Nakato",
-        clientCompany: "Binti",
-        clientEmail: "studio@binti.ug",
+        clientName: "Binti Designs",
+        clientCompany: "BINTI DESIGNS",
+        clientEmail: "bintidesigns442@gmail.com",
         issueDate: addDaysISO(-30),
         dueDate: addDaysISO(-16),
         status: "paid",
-        items: [
+        items: seededLines(binti, "inv-binti"),
+        notes: "Live at binti-designs.vercel.app. Thank you.",
+        taxPercent: 0,
+        payments: [
           {
-            id: uid(),
-            description: "Business website — 6 pages, booking, blog",
-            quantity: 1,
-            rate: 4_800_000,
+            id: "pay-binti-1",
+            number: "RCP-0101",
+            date: addDaysISO(-30),
+            amount: 2_060_000,
+            method: "momo",
+            note: "40% to start.",
           },
           {
-            id: uid(),
-            description: "Mobile money checkout",
-            quantity: 1,
-            rate: 350_000,
+            id: "pay-binti-2",
+            number: "RCP-0102",
+            date: addDaysISO(-16),
+            amount: 3_090_000,
+            method: "bank",
+            note: "Remainder on launch.",
           },
         ],
-        notes: "Thank you for trusting us with Binti. Final balance on launch.",
-        taxPercent: 0,
         createdAt: addDaysISO(-30),
       },
       {
-        id: invPaloma,
-        number: "INV-0044",
-        estimateId: null,
-        clientId: palomaId,
-        clientName: "Sam Okello",
-        clientCompany: "Paloma Coffee",
-        clientEmail: "sam@paloma.coffee",
-        issueDate: addDaysISO(-9),
-        dueDate: addDaysISO(5),
-        status: "sent",
-        items: [
+        id: invDrape,
+        number: "INV-0038",
+        estimateId: estDrape,
+        clientId: drapeId,
+        clientName: "Drapé Collective",
+        clientCompany: "Drapé Collective",
+        clientEmail: "",
+        issueDate: addDaysISO(-55),
+        dueDate: addDaysISO(-41),
+        status: "paid",
+        items: seededLines(drape, "inv-drape"),
+        notes: "Live at odrapecollective.com.",
+        taxPercent: 0,
+        payments: [
           {
-            id: uid(),
-            description: "Brochure site — 5 pages + WhatsApp",
-            quantity: 1,
-            rate: 2_400_000,
+            id: "pay-drape-1",
+            number: "RCP-0094",
+            date: addDaysISO(-55),
+            amount: 4_800_000,
+            method: "momo",
+            note: "40% to start.",
+          },
+          {
+            id: "pay-drape-2",
+            number: "RCP-0095",
+            date: addDaysISO(-41),
+            amount: 7_200_000,
+            method: "bank",
+            note: "Remainder on launch.",
           },
         ],
-        notes: "Phase one. Shop is a separate estimate.",
-        taxPercent: 0,
-        createdAt: addDaysISO(-9),
+        createdAt: addDaysISO(-55),
       },
       {
-        id: invKisaasi,
-        number: "INV-0043",
+        id: invStock,
+        number: "INV-0044",
         estimateId: null,
-        clientId: kisaasiId,
-        clientName: "Musa Kintu",
-        clientCompany: "Kisaasi Motors",
-        clientEmail: "musa@kisaasimotors.ug",
-        issueDate: addDaysISO(-21),
-        dueDate: addDaysISO(-7),
-        status: "overdue",
-        items: [
+        clientId: stockId,
+        clientName: "Shop floor",
+        clientCompany: "Cloud Stock Manager",
+        clientEmail: "",
+        issueDate: addDaysISO(-9),
+        dueDate: addDaysISO(5),
+        status: "partial",
+        items: seededLines(stock, "inv-stock"),
+        notes: "Phase one on the floor. Deposit in. Remainder when reports ship.",
+        taxPercent: 0,
+        payments: [
           {
-            id: uid(),
-            description: "Garage website — services, location, WhatsApp booking",
-            quantity: 1,
-            rate: 3_200_000,
+            id: "pay-stock-1",
+            number: "RCP-0103",
+            date: addDaysISO(-9),
+            amount: 3_800_000,
+            method: "momo",
+            note: "40% deposit.",
           },
         ],
-        notes: "Balance due. Site is live.",
-        taxPercent: 0,
-        createdAt: addDaysISO(-21),
+        createdAt: addDaysISO(-9),
       },
     ],
     timeEntries: [
       {
-        id: uid(),
-        clientName: "Paloma Coffee",
-        project: "Shop product templates",
+        id: "time-hymns-1",
+        clientName: "Anglican Hymn Sync",
+        project: "Now-playing deck",
         seconds: 3 * 3600 + 24 * 60,
         runningSince: null,
         rate: 80_000,

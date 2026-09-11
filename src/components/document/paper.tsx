@@ -1,6 +1,18 @@
-import { depositDue, grandTotal, itemsSubtotal, taxAmount } from "@/lib/money/calc";
-import { formatMoney } from "@/lib/money/format";
-import type { Currency, LineItem, Profile } from "@/lib/money/types";
+import {
+  amountPaid,
+  depositDue,
+  grandTotal,
+  itemsSubtotal,
+  taxAmount,
+} from "@/lib/money/calc";
+import { formatMoney, paymentMethodLabel } from "@/lib/money/format";
+import type {
+  Currency,
+  Invoice,
+  LineItem,
+  Payment,
+  Profile,
+} from "@/lib/money/types";
 import { formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +32,7 @@ export type PaperDoc = {
   stackLabel?: string;
   showStack?: boolean;
   status?: string;
+  paidToDate?: number;
 };
 
 export function DocumentPaper({
@@ -40,6 +53,10 @@ export function DocumentPaper({
     doc.depositPercent && doc.depositPercent > 0
       ? depositDue(total, doc.depositPercent)
       : 0;
+  const paid = Math.max(0, doc.paidToDate ?? 0);
+  const showPaid = doc.paidToDate != null;
+  const balance = Math.max(0, total - paid);
+  const settled = showPaid && total > 0 && paid >= total;
 
   return (
     <article
@@ -101,7 +118,7 @@ export function DocumentPaper({
       <table className="mt-10 w-full text-sm">
         <thead>
           <tr className="border-b border-paper-line text-left text-xs uppercase tracking-[0.14em] text-paper-muted">
-            <th className="pb-2 font-medium">Item</th>
+            <th className="pb-2 font-medium">What this does</th>
             <th className="pb-2 text-right font-medium">Qty</th>
             <th className="pb-2 text-right font-medium">Rate</th>
             <th className="pb-2 text-right font-medium">Amount</th>
@@ -136,11 +153,21 @@ export function DocumentPaper({
           value={formatMoney(total, currency)}
           strong
         />
-        {deposit > 0 ? (
+        {deposit > 0 && !showPaid ? (
           <Row
             label={`Deposit ${doc.depositPercent}%`}
             value={formatMoney(deposit, currency)}
           />
+        ) : null}
+        {showPaid ? (
+          <>
+            <Row label="Paid to date" value={formatMoney(paid, currency)} />
+            <Row
+              label={settled ? "Paid in full" : "Balance due"}
+              value={formatMoney(balance, currency)}
+              strong
+            />
+          </>
         ) : null}
       </section>
 
@@ -158,6 +185,117 @@ export function DocumentPaper({
 
       {profile.paymentTerms ? (
         <p className="mt-2 text-xs text-paper-muted">{profile.paymentTerms}</p>
+      ) : null}
+    </article>
+  );
+}
+
+export function ReceiptPaper({
+  profile,
+  currency,
+  invoice,
+  payment,
+  className,
+}: {
+  profile: Profile;
+  currency: Currency;
+  invoice: Invoice;
+  payment: Payment;
+  className?: string;
+}) {
+  const total = grandTotal(invoice.items, invoice.taxPercent);
+  const paid = amountPaid(invoice.payments);
+  const balance = Math.max(0, total - paid);
+  const settled = total > 0 && paid >= total;
+
+  return (
+    <article
+      className={cn(
+        "print-document mx-auto w-full max-w-2xl bg-paper text-paper-foreground shadow-[var(--shadow-paper)] rounded-xl px-6 py-8 sm:px-10 sm:py-12",
+        className,
+      )}
+    >
+      <header className="flex items-start justify-between gap-6 border-b border-paper-line pb-6">
+        <div>
+          <p className="font-serif text-3xl leading-none tracking-tight">
+            {profile.company || profile.name || "Studio"}
+          </p>
+          <p className="mt-3 text-sm text-paper-muted whitespace-pre-line">
+            {[profile.name, profile.address, profile.city, profile.phone, profile.email]
+              .filter(Boolean)
+              .join("\n")}
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="text-xs font-medium uppercase tracking-[0.18em] text-paper-muted">
+            Receipt
+          </p>
+          <p className="mt-1 font-serif text-2xl tabular-nums">{payment.number}</p>
+          <p className="mt-3 text-sm text-paper-muted">
+            {formatDate(payment.date)}
+          </p>
+        </div>
+      </header>
+
+      <section className="mt-8 grid gap-6 sm:grid-cols-2">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-[0.16em] text-paper-muted">
+            Received from
+          </p>
+          <p className="mt-2 font-medium">
+            {invoice.clientCompany || invoice.clientName || "Client"}
+          </p>
+          {invoice.clientCompany && invoice.clientName ? (
+            <p className="text-sm text-paper-muted">{invoice.clientName}</p>
+          ) : null}
+          {invoice.clientEmail ? (
+            <p className="text-sm text-paper-muted">{invoice.clientEmail}</p>
+          ) : null}
+        </div>
+        <div className="sm:text-right">
+          <p className="text-xs font-medium uppercase tracking-[0.16em] text-paper-muted">
+            Against invoice
+          </p>
+          <p className="mt-2 tabular-nums">{invoice.number}</p>
+          <p className="mt-3 text-sm text-paper-muted">
+            {paymentMethodLabel(payment.method)}
+          </p>
+        </div>
+      </section>
+
+      <p
+        className={cn(
+          "mt-10 font-serif tracking-tight",
+          settled ? "text-4xl" : "text-3xl",
+        )}
+      >
+        {settled ? "Paid in full" : "Payment received"}
+      </p>
+
+      <section className="mt-8 ml-auto w-full max-w-xs space-y-2 text-sm">
+        <Row
+          label="This payment"
+          value={formatMoney(payment.amount, currency)}
+          strong
+        />
+        <Row label="Invoice total" value={formatMoney(total, currency)} />
+        <Row label="Paid to date" value={formatMoney(paid, currency)} />
+        <Row
+          label={settled ? "Balance" : "Still due"}
+          value={formatMoney(balance, currency)}
+        />
+      </section>
+
+      {payment.note ? (
+        <p className="mt-10 max-w-prose text-sm leading-relaxed text-paper-muted">
+          {payment.note}
+        </p>
+      ) : null}
+
+      {profile.paymentNote ? (
+        <p className="mt-6 max-w-prose text-sm text-paper-muted">
+          {profile.paymentNote}
+        </p>
       ) : null}
     </article>
   );

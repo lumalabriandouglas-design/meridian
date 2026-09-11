@@ -6,7 +6,7 @@ export function StatusBadge({ status }: { status: string }) {
       ? "ok"
       : status === "overdue" || status === "declined"
         ? "warn"
-        : status === "sent"
+        : status === "sent" || status === "partial"
           ? "sent"
           : "mute";
   return <Badge tone={tone}>{status}</Badge>;

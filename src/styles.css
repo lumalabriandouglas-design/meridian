@@ -88,9 +88,20 @@
     outline: none;
   }
 
+  .account-chip {
+    color: var(--color-foreground);
+  }
+
   .account-chip span.grid.h-8 {
     background-color: var(--color-secondary);
     color: var(--color-foreground);
+  }
+
+  .account-chip span.text-sm {
+    max-width: 9rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 

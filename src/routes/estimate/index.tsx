@@ -17,7 +17,7 @@ function Choose() {
           to="/estimate/website"
           icon={Globe}
           title="Website"
-          copy="Kind of site + features. Stack stays backstage unless you show it."
+          copy="Pick the client, then what the site will do. Languages stay off the invoice."
         />
         <Choice
           to="/estimate/auto"
@@ -29,7 +29,7 @@ function Choose() {
           to="/estimate/custom"
           icon={List}
           title="Custom job"
-          copy="Blank line items. Any trade, any language."
+          copy="What the app will do for them — not the stack you write it in."
         />
       </div>
     </AppShell>

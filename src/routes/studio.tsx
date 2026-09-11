@@ -20,7 +20,7 @@ function Studio() {
       <PageHeader
         kicker="Studio"
         title="Your letterhead"
-        description="This is what prints on every estimate. It lives on your account, not this phone. Main currency is Ugandan shillings."
+        description="This is what prints on every estimate. Admin for this desk is lumalabriandouglas@gmail.com. Main currency is Ugandan shillings."
       />
       <div className="mx-auto grid max-w-3xl gap-5">
         <div className="grid gap-4 rounded-xl bg-card p-5 shadow-[var(--shadow-border)] sm:grid-cols-2">
@@ -118,14 +118,14 @@ function Studio() {
             onClick={() => {
               if (
                 window.confirm(
-                  "Replace this account’s desk with the Kampala sample? Your current estimates will be overwritten — only on this account.",
+                  "Replace the desk with Douglas’s shipped work and prices? Current estimates on this phone will be overwritten.",
                 )
               ) {
                 resetDemo();
               }
             }}
           >
-            Load sample desk
+            Reset to shipped work
           </Button>
         </div>
       </div>

@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { StatusBadge } from "@/components/status-badge";
 import { AppShell, PageHeader } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
-import { grandTotal } from "@/lib/money/calc";
+import { amountPaid, grandTotal } from "@/lib/money/calc";
 import { formatMoney } from "@/lib/money/format";
 import { derivedInvoiceStatus, emptyItem, useMoney } from "@/lib/money/store";
 import { addDaysISO, formatDate, todayISO } from "@/lib/utils";
@@ -20,7 +20,7 @@ function Invoices() {
       <PageHeader
         kicker="Paper"
         title="Invoices"
-        description="What they owe. Print it. Mark it paid."
+        description="What they owe. Record a payment and they get a receipt."
         actions={
           <Button
             onClick={() => {
@@ -36,6 +36,7 @@ function Invoices() {
                 items: [emptyItem()],
                 notes: "",
                 taxPercent: 0,
+                payments: [],
               });
               void navigate({ to: "/invoices/$id", params: { id } });
             }}
@@ -52,6 +53,9 @@ function Invoices() {
         ) : (
           invoices.map((row) => {
             const status = derivedInvoiceStatus(row);
+            const total = grandTotal(row.items, row.taxPercent);
+            const paid = amountPaid(row.payments);
+            const due = Math.max(0, total - paid);
             return (
               <li key={row.id}>
                 <Link
@@ -65,10 +69,15 @@ function Invoices() {
                     </p>
                     <p className="text-sm text-muted-foreground">
                       {row.number} · due {formatDate(row.dueDate)}
+                      {paid > 0 && due > 0
+                        ? ` · paid ${formatMoney(paid, currency)}`
+                        : ""}
                     </p>
                   </div>
                   <p className="tabular-nums text-sm">
-                    {formatMoney(grandTotal(row.items, row.taxPercent), currency)}
+                    {status === "paid"
+                      ? formatMoney(total, currency)
+                      : formatMoney(due, currency)}
                   </p>
                   <StatusBadge status={status} />
                 </Link>

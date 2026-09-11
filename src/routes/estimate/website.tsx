@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { DocumentPaper } from "@/components/document/paper";
 import { AppShell, PageHeader } from "@/components/layout/app-shell";
+import { ClientPicker } from "@/components/money/client-picker";
 import { MoneyField } from "@/components/money-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,36 +13,55 @@ import { computeRates } from "@/lib/money/calc";
 import { formatHours, formatMoney, roundUgxNice } from "@/lib/money/format";
 import {
   quoteWebsite,
+  scaleOutcomeLines,
   SITE_FEATURES,
   SITE_TYPES,
   STACKS,
+  websiteOutcomeLines,
+  websiteOutcomeNotes,
 } from "@/lib/money/playbooks";
 import { useMoney } from "@/lib/money/store";
+import type { ClientDraft } from "@/lib/money/types";
+import { workById } from "@/lib/money/works";
 import { addDaysISO, cn, todayISO, uid } from "@/lib/utils";
 
+type WebsiteSearch = { like?: string };
+
 export const Route = createFileRoute("/estimate/website")({
+  validateSearch: (search: Record<string, unknown>): WebsiteSearch => ({
+    like: typeof search.like === "string" ? search.like : undefined,
+  }),
   component: WebsiteEstimate,
 });
 
 function WebsiteEstimate() {
+  const { like } = Route.useSearch();
+  const sample = workById(like);
   const navigate = useNavigate();
   const profile = useMoney((s) => s.profile);
   const rate = useMoney((s) => s.rate);
-  const clients = useMoney((s) => s.clients);
   const saveEstimate = useMoney((s) => s.saveEstimate);
   const upsertClient = useMoney((s) => s.upsertClient);
 
   const recommended = Math.round(computeRates(rate).recommended / 1000) * 1000;
+  const startType = sample?.siteTypeId ?? "business";
+  const startPages =
+    SITE_TYPES.find((t) => t.id === startType)?.pagesIncluded ?? 6;
 
-  const [typeId, setTypeId] = useState("business");
-  const [pages, setPages] = useState(6);
-  const [featureIds, setFeatureIds] = useState<string[]>(["booking", "whatsapp"]);
+  const [typeId, setTypeId] = useState(startType);
+  const [pages, setPages] = useState(startPages);
+  const [featureIds, setFeatureIds] = useState<string[]>(
+    sample?.featureIds ?? ["booking", "whatsapp"],
+  );
   const [stackId, setStackId] = useState("custom");
   const [showStack, setShowStack] = useState(false);
-  const [clientName, setClientName] = useState("");
-  const [clientCompany, setClientCompany] = useState("");
-  const [clientEmail, setClientEmail] = useState("");
-  const [price, setPrice] = useState<number | null>(null);
+  const [client, setClient] = useState<ClientDraft>({
+    clientId: null,
+    clientName: "",
+    clientCompany: "",
+    clientEmail: "",
+  });
+  const [price, setPrice] = useState<number | null>(sample?.price ?? null);
   const [notes, setNotes] = useState("");
 
   const quoted = useMemo(
@@ -63,30 +83,12 @@ function WebsiteEstimate() {
   const earnedHour = quoted.hours > 0 ? yourPrice / quoted.hours : 0;
   const stack = STACKS.find((s) => s.id === stackId)!;
 
-  const featureNames = quoted.features.map((f) => f.name.toLowerCase());
-  const autoNotes =
-    notes ||
-    [
-      `This estimate covers a ${quoted.type.name.toLowerCase()}`,
-      quoted.extraPages
-        ? `with ${pages} pages`
-        : `with ${quoted.type.pagesIncluded} pages included`,
-      featureNames.length ? `plus ${featureNames.join(", ")}` : null,
-      quoted.rush ? "on a rush timeline" : null,
-      "40% to start, remainder on launch.",
-    ]
-      .filter(Boolean)
-      .join(" ")
-      .replace("  ", " ");
+  const items = useMemo(
+    () => scaleOutcomeLines(websiteOutcomeLines(quoted, pages), yourPrice),
+    [quoted, pages, yourPrice],
+  );
 
-  const items = [
-    {
-      id: "pkg",
-      description: `${quoted.type.name} — ${pages} page${pages === 1 ? "" : "s"}`,
-      quantity: 1,
-      rate: yourPrice,
-    },
-  ];
+  const autoNotes = notes || websiteOutcomeNotes(quoted, pages);
 
   function toggle(id: string) {
     setFeatureIds((prev) =>
@@ -96,19 +98,20 @@ function WebsiteEstimate() {
   }
 
   function save() {
-    const clientId = clientName.trim()
+    const clientId = client.clientName.trim()
       ? upsertClient({
-          name: clientName.trim(),
-          company: clientCompany.trim(),
-          email: clientEmail.trim(),
+          id: client.clientId ?? undefined,
+          name: client.clientName.trim(),
+          company: client.clientCompany.trim(),
+          email: client.clientEmail.trim(),
         })
       : null;
     const id = saveEstimate({
       kind: "website",
       clientId,
-      clientName: clientName.trim() || "Client",
-      clientCompany: clientCompany.trim(),
-      clientEmail: clientEmail.trim(),
+      clientName: client.clientName.trim() || "Client",
+      clientCompany: client.clientCompany.trim(),
+      clientEmail: client.clientEmail.trim(),
       issueDate: todayISO(),
       validUntil: addDaysISO(14),
       status: "draft",
@@ -128,11 +131,27 @@ function WebsiteEstimate() {
       <PageHeader
         kicker="Website playbook"
         title="Kind of site, then the price"
-        description="Languages you code in stay backstage. Extra language means the site itself — English plus Luganda, for example."
+        description="Pick who you are billing. The paper lists what the site will do — not the languages you write it in."
       />
 
       <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-12">
         <div className="space-y-8 lg:col-span-7">
+          {sample ? (
+            <p className="rounded-xl bg-card px-5 py-4 text-sm shadow-[var(--shadow-border)]">
+              Starting from{" "}
+              <span className="font-medium">{sample.name}</span>
+              {" — "}
+              {formatMoney(sample.price, profile.currency)}. Change the kind of
+              site if this job is smaller or larger.
+            </p>
+          ) : null}
+
+          <ClientPicker
+            value={client}
+            onChange={setClient}
+            companyPlaceholder="Binti"
+          />
+
           <section>
             <Label>What kind of website?</Label>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
@@ -173,7 +192,7 @@ function WebsiteEstimate() {
               />
             </div>
             <div>
-              <Label htmlFor="stack">How you’ll build it</Label>
+              <Label htmlFor="stack">How you’ll build it (stays off the paper)</Label>
               <select
                 id="stack"
                 className="mt-2 flex h-11 w-full rounded-md bg-secondary px-3 text-sm shadow-[var(--shadow-border)]"
@@ -190,7 +209,9 @@ function WebsiteEstimate() {
                 ))}
               </select>
               <label className="mt-3 flex h-11 items-center justify-between gap-3 text-sm">
-                <span>Show “built with” on the estimate</span>
+                <span className="text-muted-foreground">
+                  Show “built with” on the estimate only
+                </span>
                 <Switch checked={showStack} onCheckedChange={setShowStack} />
               </label>
             </div>
@@ -221,55 +242,6 @@ function WebsiteEstimate() {
                   </span>
                 </label>
               ))}
-            </div>
-          </section>
-
-          <section className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <Label htmlFor="cname">Client</Label>
-              <Input
-                id="cname"
-                className="mt-2"
-                list="client-names"
-                placeholder="Binti Nakato"
-                value={clientName}
-                onChange={(e) => {
-                  const name = e.target.value;
-                  setClientName(name);
-                  const hit = clients.find(
-                    (c) => c.name.toLowerCase() === name.toLowerCase(),
-                  );
-                  if (hit) {
-                    setClientCompany(hit.company);
-                    setClientEmail(hit.email);
-                  }
-                }}
-              />
-              <datalist id="client-names">
-                {clients.map((c) => (
-                  <option key={c.id} value={c.name} />
-                ))}
-              </datalist>
-            </div>
-            <div>
-              <Label htmlFor="cco">Company</Label>
-              <Input
-                id="cco"
-                className="mt-2"
-                placeholder="Binti"
-                value={clientCompany}
-                onChange={(e) => setClientCompany(e.target.value)}
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <Label htmlFor="cem">Email</Label>
-              <Input
-                id="cem"
-                className="mt-2"
-                type="email"
-                value={clientEmail}
-                onChange={(e) => setClientEmail(e.target.value)}
-              />
             </div>
           </section>
 
@@ -337,7 +309,7 @@ function WebsiteEstimate() {
               className="mt-2 w-full"
               variant="secondary"
               onClick={() => {
-                setPrice(list);
+                setPrice(sample?.price ?? list);
               }}
               type="button"
             >
@@ -352,9 +324,9 @@ function WebsiteEstimate() {
               doc={{
                 kindLabel: "Estimate",
                 number: "EST-preview",
-                clientName: clientName || "Client",
-                clientCompany,
-                clientEmail,
+                clientName: client.clientName || "Client",
+                clientCompany: client.clientCompany,
+                clientEmail: client.clientEmail,
                 issueDate: todayISO(),
                 untilLabel: "Valid until",
                 untilDate: addDaysISO(14),
