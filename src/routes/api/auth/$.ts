@@ -2,72 +2,104 @@ import { createFileRoute } from "@tanstack/react-router";
 import { auth } from "@/lib/auth/server";
 
 /**
- * Better Auth only trusts `BETTER_AUTH_URL` once that env is set (deploy).
- * The public alias people actually open (this Vercel host) can differ, which
- * surfaces as "Invalid origin" on email create/sign-in.
+ * The published desk is opened on a host the frozen auth list does not
+ * include (only the sandbox and localhost). Email then returns
+ * "Invalid origin", and Google crashes while building the redirect.
  *
- * CSRF stays on: we only rewrite Origin when the browser is already
- * same-origin with THIS host. Foreign sites still fail the origin check.
- * Live preview leaves the header alone (`BETTER_AUTH_URL` unset).
+ * Trust only the host this request actually arrived on, and only when
+ * the browser origin is that same host. Cross-site calls stay rejected.
  */
-function publicOrigin(request: Request): string {
-  const url = new URL(request.url);
-  const proto = (
-    request.headers.get("x-forwarded-proto") ||
-    url.protocol.replace(":", "") ||
-    "https"
-  )
-    .split(",")[0]
-    .trim();
-  const host = (
-    request.headers.get("x-forwarded-host") ||
-    request.headers.get("host") ||
-    url.host
-  )
-    .split(",")[0]
-    .trim();
-  const scheme = proto === "http" ? "http" : "https";
-  return `${scheme}://${host}`;
+type AuthOptions = {
+  baseURL?: { allowedHosts?: string[] } | string;
+  trustedOrigins?: string[] | ((request: Request) => Promise<string[]>);
+};
+
+function firstHeader(request: Request, name: string): string | null {
+  const raw = request.headers.get(name);
+  if (!raw) return null;
+  const value = raw.split(",")[0]?.trim() ?? "";
+  return value || null;
 }
 
-function originOf(value: string | null): string | null {
-  if (!value) return null;
+function isSafeHost(host: string): boolean {
+  return (
+    /^[a-zA-Z0-9.-]+(?::[0-9]{1,5})?$/.test(host) ||
+    /^\[[0-9a-fA-F:]+\](?::[0-9]{1,5})?$/.test(host)
+  );
+}
+
+function arrivalHost(request: Request): string | null {
+  const forwarded = firstHeader(request, "x-forwarded-host");
+  const hostHeader = firstHeader(request, "host");
+  let urlHost: string | null = null;
   try {
-    return new URL(value).origin;
+    urlHost = new URL(request.url).host;
   } catch {
-    return null;
+    urlHost = null;
   }
+  const candidate = [forwarded, hostHeader, urlHost].find(
+    (host) => host && isSafeHost(host),
+  );
+  return candidate ?? null;
 }
 
-function withTrustedOrigin(request: Request): Request {
-  const trusted = process.env.BETTER_AUTH_URL?.trim().replace(/\/+$/, "");
-  if (!trusted) return request;
+function trustArrivalHost(request: Request): void {
+  const site = (request.headers.get("sec-fetch-site") || "").toLowerCase();
+  if (site === "cross-site") return;
 
-  const self = publicOrigin(request);
-  const incoming =
-    originOf(request.headers.get("origin")) ??
-    originOf(request.headers.get("referer"));
-  if (!incoming || incoming !== self || incoming === trusted) return request;
+  const host = arrivalHost(request);
+  if (!host) return;
 
-  const headers = new Headers(request.headers);
-  headers.set("origin", trusted);
-  const referer = request.headers.get("referer");
-  if (referer) {
+  const originHeader = request.headers.get("origin");
+  if (originHeader) {
     try {
-      const r = new URL(referer);
-      headers.set("referer", `${trusted}${r.pathname}${r.search}`);
+      if (new URL(originHeader).host !== host) return;
     } catch {
-      headers.set("referer", trusted);
+      return;
     }
   }
-  return new Request(request, { headers });
+
+  const options = (auth as { options?: AuthOptions }).options;
+  if (!options) return;
+
+  const base = options.baseURL;
+  if (base && typeof base === "object" && Array.isArray(base.allowedHosts)) {
+    const exists = base.allowedHosts.some(
+      (pattern) => pattern.toLowerCase() === host.toLowerCase(),
+    );
+    if (!exists) base.allowedHosts.push(host);
+  }
+
+  const forwardedProto = firstHeader(request, "x-forwarded-proto");
+  let proto = forwardedProto === "http" || forwardedProto === "https" ? forwardedProto : null;
+  if (!proto) {
+    try {
+      proto = new URL(request.url).protocol === "http:" ? "http" : "https";
+    } catch {
+      proto = "https";
+    }
+  }
+  const origin = `${proto}://${host}`;
+  if (Array.isArray(options.trustedOrigins) && !options.trustedOrigins.includes(origin)) {
+    options.trustedOrigins.push(origin);
+  }
+}
+
+async function handle(request: Request): Promise<Response> {
+  trustArrivalHost(request);
+  try {
+    return await auth.handler(request);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Could not sign in";
+    return Response.json({ message }, { status: 500 });
+  }
 }
 
 export const Route = createFileRoute("/api/auth/$")({
   server: {
     handlers: {
-      GET: ({ request }) => auth.handler(request),
-      POST: ({ request }) => auth.handler(withTrustedOrigin(request)),
+      GET: ({ request }) => handle(request),
+      POST: ({ request }) => handle(request),
     },
   },
 });

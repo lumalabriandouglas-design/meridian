@@ -6,8 +6,6 @@ import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { formatMoney } from "@/lib/money/format";
-import { ADMIN_EMAIL, SHIPPED_WORK } from "@/lib/money/works";
 
 export const Route = createFileRoute("/login")({
   validateSearch: (search: Record<string, unknown>): { next?: string } => ({
@@ -34,6 +32,8 @@ function Login() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [unlockName, setUnlockName] = useState(false);
+  const [unlockEmail, setUnlockEmail] = useState(false);
 
   if (!mounted || isPending) {
     return (
@@ -59,7 +59,29 @@ function Login() {
   async function onProvider(providerId: string) {
     setError(null);
     setBusy(true);
+    const framed = insideFrame();
+    const popup = framed ? openProviderPopup(providerId) : null;
+    if (framed && !popup) {
+      setBusy(false);
+      setError("Allow pop-ups, then try Google again.");
+      return;
+    }
     try {
+      if (framed && popup) {
+        const token = await waitForProviderPopup(popup);
+        if (!token) {
+          setBusy(false);
+          setError("Google didn’t finish. Allow pop-ups and try again.");
+          return;
+        }
+        try {
+          window.sessionStorage.setItem("grok-auth.bearer-token", token);
+        } catch {
+          /* ignore */
+        }
+        await finishSession();
+        return;
+      }
       await signIn(providerId, { callbackURL: dest, errorCallbackURL: "/login" });
     } catch (err) {
       setBusy(false);
@@ -102,6 +124,14 @@ function Login() {
         setError(friendlyAuthError(result.error.message));
         return;
       }
+      const token = result.data && "token" in result.data ? result.data.token : null;
+      if (typeof token === "string" && token) {
+        try {
+          window.sessionStorage.setItem("grok-auth.bearer-token", token);
+        } catch {
+          /* preview can still use the cookie when the window allows it */
+        }
+      }
       await finishSession();
     } catch (err) {
       setBusy(false);
@@ -112,146 +142,178 @@ function Login() {
   }
 
   return (
-    <main className="min-h-dvh bg-background text-foreground">
-      <div className="mx-auto grid min-h-dvh max-w-5xl items-center gap-12 px-6 py-16 lg:grid-cols-2">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            Meridian · Luma Labrian · Kampala
-          </p>
-          <h1 className="mt-4 font-serif text-5xl tracking-tight">
-            {mode === "signup" ? "Create your desk" : "Open your desk"}
-          </h1>
-          <p className="mt-4 max-w-md text-sm leading-relaxed text-muted-foreground">
-            Google is the fast path. X and email work too — the desk stays on
-            that account. Work samples stay public.
-          </p>
+    <main className="grid min-h-dvh place-items-center bg-background px-6 py-16 text-foreground">
+      <div className="w-full max-w-sm">
+        <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+          Meridian · Kampala
+        </p>
+        <h1 className="mt-4 font-serif text-5xl tracking-tight">
+          {mode === "signup" ? "Create your desk" : "Open your desk"}
+        </h1>
+        <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+          Google is the fast path. X and email keep this desk on that account.
+        </p>
 
-          <div className="mt-8 max-w-sm space-y-3">
-            {authEnabled ? (
-              GROK_PROVIDERS.map((p) => (
-                <Button
-                  key={p.providerId}
-                  type="button"
-                  variant="secondary"
-                  size="lg"
-                  className="w-full"
-                  onClick={() => void onProvider(p.providerId)}
-                  disabled={busy}
-                >
-                  {p.idp === "google" ? <GoogleMark /> : <XMark />}
-                  Continue with {p.label}
-                </Button>
-              ))
-            ) : (
-              <p className="text-sm text-muted-foreground">Sign-in is disabled.</p>
-            )}
-
-            <p className="flex items-center gap-3 py-2 text-xs uppercase tracking-[0.16em] text-muted-foreground">
-              <span className="h-px flex-1 bg-border" />
-              Or email
-              <span className="h-px flex-1 bg-border" />
-            </p>
-
-            <form className="space-y-3" onSubmit={(e) => void onEmail(e)}>
-              {mode === "signup" ? (
-                <div>
-                  <Label htmlFor="name">Your name</Label>
-                  <Input
-                    id="name"
-                    className="mt-2"
-                    autoComplete="name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Lumala Brian"
-                  />
-                </div>
-              ) : null}
-              <div>
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  className="mt-2"
-                  type="email"
-                  autoComplete="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder={ADMIN_EMAIL}
-                />
-              </div>
-              <div>
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  className="mt-2"
-                  type="password"
-                  autoComplete={mode === "signup" ? "new-password" : "current-password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </div>
-              {error ? (
-                <p className="text-sm text-destructive">{error}</p>
-              ) : null}
-              <Button className="h-12 w-full" type="submit" disabled={busy}>
-                {busy
-                  ? "Working…"
-                  : mode === "signup"
-                    ? "Create account"
-                    : "Sign in"}
+        <div className="mt-8 space-y-3">
+          {authEnabled ? (
+            GROK_PROVIDERS.map((p) => (
+              <Button
+                key={p.providerId}
+                type="button"
+                variant="secondary"
+                size="lg"
+                className="w-full"
+                onClick={() => void onProvider(p.providerId)}
+                disabled={busy}
+              >
+                {p.idp === "google" ? <GoogleMark /> : <XMark />}
+                Continue with {p.label}
               </Button>
-            </form>
+            ))
+          ) : (
+            <p className="text-sm text-muted-foreground">Sign-in is disabled.</p>
+          )}
 
-            <button
-              type="button"
-              className="h-11 w-full text-sm text-muted-foreground hover:text-foreground"
-              onClick={() => {
-                setMode(mode === "signup" ? "signin" : "signup");
-                setError(null);
-              }}
-            >
-              {mode === "signup"
-                ? "Already have an account? Sign in"
-                : "Need a desk? Create account"}
-            </button>
-
-            <p className="text-xs text-muted-foreground">
-              Admin for this desk is {ADMIN_EMAIL}.
-            </p>
-          </div>
-
-          <p className="mt-8 text-sm text-muted-foreground">
-            <Link to="/work" className="hover:text-foreground">
-              See shipped work and prices
-            </Link>
+          <p className="flex items-center gap-3 py-2 text-xs uppercase tracking-[0.16em] text-muted-foreground">
+            <span className="h-px flex-1 bg-border" />
+            Or email
+            <span className="h-px flex-1 bg-border" />
           </p>
-        </div>
-        <ul className="hidden space-y-4 lg:block">
-          {SHIPPED_WORK.map((job) => (
-            <li
-              key={job.id}
-              className="flex items-baseline justify-between gap-4 rounded-xl bg-card px-5 py-4 shadow-[var(--shadow-border)]"
-            >
-              <div className="min-w-0">
-                <p className="truncate font-medium">{job.name}</p>
-                <p className="truncate text-sm text-muted-foreground">
-                  {job.blurb}
-                </p>
+
+          <form
+            className="space-y-3"
+            autoComplete="off"
+            onSubmit={(e) => void onEmail(e)}
+          >
+            {mode === "signup" ? (
+              <div>
+                <Label htmlFor="desk-person">Your name</Label>
+                <Input
+                  id="desk-person"
+                  name="desk-person"
+                  className="mt-2"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  data-lpignore="true"
+                  data-1p-ignore="true"
+                  readOnly={!unlockName}
+                  onFocus={() => setUnlockName(true)}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
               </div>
-              <p className="shrink-0 font-serif text-lg tabular-nums">
-                {formatMoney(job.price, "UGX")}
-              </p>
-            </li>
-          ))}
-        </ul>
+            ) : null}
+            <div>
+              <Label htmlFor="desk-mail">Email</Label>
+              <Input
+                id="desk-mail"
+                name="desk-mail"
+                className="mt-2"
+                type="text"
+                inputMode="email"
+                autoComplete="off"
+                autoCorrect="off"
+                spellCheck={false}
+                data-lpignore="true"
+                data-1p-ignore="true"
+                readOnly={!unlockEmail}
+                onFocus={() => setUnlockEmail(true)}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="desk-secret">Password</Label>
+              <Input
+                id="desk-secret"
+                name="desk-secret"
+                className="mt-2"
+                type="password"
+                autoComplete="new-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+            {error ? (
+              <p className="text-sm text-destructive">{error}</p>
+            ) : null}
+            <Button className="h-12 w-full" type="submit" disabled={busy}>
+              {busy
+                ? "Working…"
+                : mode === "signup"
+                  ? "Create account"
+                  : "Sign in"}
+            </Button>
+          </form>
+
+          <button
+            type="button"
+            className="h-11 w-full text-sm text-muted-foreground hover:text-foreground"
+            onClick={() => {
+              setMode(mode === "signup" ? "signin" : "signup");
+              setError(null);
+            }}
+          >
+            {mode === "signup"
+              ? "Already have an account? Sign in"
+              : "Need a desk? Create account"}
+          </button>
+        </div>
+
+        <p className="mt-8 text-sm text-muted-foreground">
+          <Link to="/" className="hover:text-foreground">
+            Back to home
+          </Link>
+        </p>
       </div>
     </main>
   );
 }
 
+function insideFrame(): boolean {
+  if (typeof window === "undefined") return false;
+  if (window.location.hostname.endsWith(".grok-sandbox.com")) return true;
+  try {
+    return window.self !== window.top;
+  } catch {
+    return true;
+  }
+}
+
+function openProviderPopup(providerId: string): Window | null {
+  const url = `${window.location.origin}/auth/popup?providerId=${encodeURIComponent(providerId)}`;
+  return window.open(url, `grok-signin-${Date.now()}`, "popup,width=500,height=650");
+}
+
+function waitForProviderPopup(popup: Window): Promise<string | null> {
+  return new Promise((resolve) => {
+    const origin = window.location.origin;
+    let settled = false;
+    const settle = (token: string | null) => {
+      if (settled) return;
+      settled = true;
+      window.clearInterval(poll);
+      window.removeEventListener("message", onMessage);
+      resolve(token);
+    };
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== origin) return;
+      const data = event.data as { source?: string; token?: string | null } | undefined;
+      if (!data || data.source !== "grok-auth-popup") return;
+      settle(data.token ?? null);
+    };
+    const poll = window.setInterval(() => {
+      if (popup.closed) window.setTimeout(() => settle(null), 400);
+    }, 300);
+    window.addEventListener("message", onMessage);
+  });
+}
+
 function friendlyAuthError(message?: string | null): string {
   const raw = (message ?? "").trim();
   if (/invalid origin/i.test(raw)) {
-    return "This window isn’t accepted for a password account. Use Continue with Google.";
+    return "This page couldn’t start the account. Refresh, then try again.";
   }
   if (/invalid email or password|invalid password|user not found/i.test(raw)) {
     return "Email or password is wrong.";

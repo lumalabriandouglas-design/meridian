@@ -161,7 +161,7 @@ function ShellFrame({
           </nav>
           <div className="mt-4 space-y-3 border-t border-border px-2 pt-4 text-xs text-muted-foreground">
             <AuthSlot />
-            <p>Luma Labrian</p>
+            <p>Lumala Brian</p>
             <a
               href={`mailto:${ADMIN_EMAIL}`}
               className="block truncate hover:text-foreground"

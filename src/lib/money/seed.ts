@@ -78,8 +78,8 @@ export function createSeed(): MoneyState {
 
   return {
     profile: {
-      name: "Douglas Luma",
-      company: "Luma Labrian",
+      name: "Lumala Brian",
+      company: "Lumala Brian",
       email: ADMIN_EMAIL,
       phone: "",
       address: "",

@@ -118,7 +118,7 @@ function Studio() {
             onClick={() => {
               if (
                 window.confirm(
-                  "Replace the desk with Douglas’s shipped work and prices? Current estimates on this phone will be overwritten.",
+                  "Replace the desk with Lumala Brian’s shipped work and prices? Current estimates on this phone will be overwritten.",
                 )
               ) {
                 resetDemo();

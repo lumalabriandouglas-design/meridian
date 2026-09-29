@@ -46,7 +46,7 @@ function Home() {
     <AppShell requireAuth={false}>
       <PageHeader
         kicker="Kampala, Uganda"
-        title="Luma Labrian"
+        title="Lumala Brian"
         description="Websites and apps already shipped, with the price in UGX. Open a sample, then send the next client a number from work like this — not a guess."
         actions={
           <>

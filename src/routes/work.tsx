@@ -13,9 +13,9 @@ function Work() {
   return (
     <AppShell requireAuth={false}>
       <PageHeader
-        kicker="Luma Labrian"
+        kicker="Lumala Brian"
         title="Shipped work, with the price"
-        description="Every job Douglas has already built. Use these numbers when someone asks for the same kind of site or app. Admin for this desk is the same email."
+        description="Work already shipped. Use these numbers when someone asks for the same kind of site or app."
         actions={
           <>
             <a
