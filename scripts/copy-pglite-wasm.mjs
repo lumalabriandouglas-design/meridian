@@ -10,7 +10,7 @@ if (!existsSync(destDir)) {
   process.exit(1);
 }
 
-for (const name of ["pglite.wasm", "initdb.wasm"]) {
+for (const name of ["pglite.wasm", "initdb.wasm", "pglite.data"]) {
   const from = join(srcDir, name);
   if (!existsSync(from)) {
     console.error("[pglite] missing", from);

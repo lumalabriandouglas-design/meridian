@@ -63,7 +63,7 @@ function copyPgliteWasmPlugin(): Plugin {
         ".vercel/output/functions/__server.func/_libs",
       );
       if (!existsSync(destDir)) return;
-      for (const name of ["pglite.wasm", "initdb.wasm"]) {
+      for (const name of ["pglite.wasm", "initdb.wasm", "pglite.data"]) {
         const from = join(srcDir, name);
         if (!existsSync(from)) continue;
         copyFileSync(from, join(destDir, name));
