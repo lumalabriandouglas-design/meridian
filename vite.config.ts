@@ -1,3 +1,4 @@
+import { copyFileSync, existsSync } from "node:fs";
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Plugin } from "vite";
@@ -46,6 +47,26 @@ function pgliteBootstrapPlugin(): Plugin {
       } catch (err) {
         console.error("[app-builder] DB bootstrap failed:", err);
         throw err;
+      }
+    },
+  };
+}
+
+function copyPgliteWasmPlugin(): Plugin {
+  return {
+    name: "app-builder:pglite-wasm",
+    apply: "build",
+    closeBundle() {
+      const srcDir = join(process.cwd(), "node_modules/@electric-sql/pglite/dist");
+      const destDir = join(
+        process.cwd(),
+        ".vercel/output/functions/__server.func/_libs",
+      );
+      if (!existsSync(destDir)) return;
+      for (const name of ["pglite.wasm", "initdb.wasm"]) {
+        const from = join(srcDir, name);
+        if (!existsSync(from)) continue;
+        copyFileSync(from, join(destDir, name));
       }
     },
   };
@@ -176,6 +197,9 @@ export default defineConfig(({ command, isPreview }) => ({
             // false, so removing this silently unwires /?install=1 on deploys.
             serverDir: "./server",
           }),
+          // PGLite looks for pglite.wasm next to its bundle. Nitro inlines the
+          // JS and drops the wasm, so the published desk crashes on sign-in.
+          copyPgliteWasmPlugin(),
         ]
       : []),
     viteReact(),
