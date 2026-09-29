@@ -87,11 +87,30 @@ function trustArrivalHost(request: Request): void {
 
 async function handle(request: Request): Promise<Response> {
   trustArrivalHost(request);
+  if (!process.env.DATABASE_URL?.trim()) {
+    try {
+      const { getPglite } = await import("@/lib/db");
+      await getPglite();
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : "Could not open records";
+      return Response.json(
+        { message: "Could not open the desk records.", detail },
+        { status: 500 },
+      );
+    }
+  }
   try {
-    return await auth.handler(request);
+    const response = await auth.handler(request);
+    if (response.status < 500) return response;
+    const text = await response.clone().text();
+    if (text.trim()) return response;
+    return Response.json(
+      { message: "Could not sign in.", detail: `empty ${response.status}` },
+      { status: response.status },
+    );
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Could not sign in";
-    return Response.json({ message }, { status: 500 });
+    const detail = err instanceof Error ? err.message : "Could not sign in";
+    return Response.json({ message: "Could not sign in.", detail }, { status: 500 });
   }
 }
 
