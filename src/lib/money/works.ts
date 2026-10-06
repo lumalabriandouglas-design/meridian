@@ -1,6 +1,7 @@
 import type { LineItem } from "./types";
+import { ADMIN_EMAIL } from "./admin";
 
-export const ADMIN_EMAIL = "lumalabriandouglas@gmail.com";
+export { ADMIN_EMAIL };
 
 export type ShippedWork = {
   id: string;

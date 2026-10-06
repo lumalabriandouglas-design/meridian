@@ -15,7 +15,6 @@ import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useMoney } from "@/lib/money/store";
-import { ADMIN_EMAIL } from "@/lib/money/works";
 import { cn } from "@/lib/utils";
 
 type Path =
@@ -160,13 +159,15 @@ function ShellFrame({
             <AuthSlot />
             {signedIn ? (
               <>
-                <p>Lumala Brian</p>
-                <a
-                  href={`mailto:${ADMIN_EMAIL}`}
-                  className="block truncate hover:text-foreground"
-                >
-                  {ADMIN_EMAIL}
-                </a>
+                <p className="truncate">{user?.displayName || "Signed in"}</p>
+                {user?.primaryEmail ? (
+                  <a
+                    href={`mailto:${user.primaryEmail}`}
+                    className="block truncate hover:text-foreground"
+                  >
+                    {user.primaryEmail}
+                  </a>
+                ) : null}
               </>
             ) : (
               <p>Sign in to open the desk</p>
@@ -238,7 +239,7 @@ function AuthSlot({ compact }: { compact?: boolean }) {
   }
   return (
     <Button asChild variant="secondary" size={compact ? "sm" : "default"}>
-      <Link to="/login">Sign in with Google</Link>
+      <Link to="/login">Sign in</Link>
     </Button>
   );
 }

@@ -20,7 +20,7 @@ export const Route = createRootRoute({
       {
         name: "description",
         content:
-          "Lumala Brian — private estimate desk in Kampala. Sign in to open it.",
+          "Private estimate desk. Sign in to open it.",
       },
       { name: "theme-color", content: "#0B0C0E" },
     ],

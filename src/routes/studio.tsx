@@ -20,7 +20,7 @@ function Studio() {
       <PageHeader
         kicker="Studio"
         title="Your letterhead"
-        description="This is what prints on every estimate. Admin for this desk is lumalabriandouglas@gmail.com. Main currency is Ugandan shillings."
+        description="This is what prints on every estimate. Main currency is Ugandan shillings."
       />
       <div className="mx-auto grid max-w-3xl gap-5">
         <div className="grid gap-4 rounded-xl bg-card p-5 shadow-[var(--shadow-border)] sm:grid-cols-2">
@@ -118,7 +118,7 @@ function Studio() {
             onClick={() => {
               if (
                 window.confirm(
-                  "Replace the desk with Lumala Brian’s shipped work and prices? Current estimates on this phone will be overwritten.",
+                  "Replace this desk with the shipped-work sample? Current estimates on this phone will be overwritten.",
                 )
               ) {
                 resetDemo();

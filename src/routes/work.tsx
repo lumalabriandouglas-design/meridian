@@ -1,45 +1,51 @@
+import { lazy, Suspense } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { AppShell, PageHeader } from "@/components/layout/app-shell";
-import { WorkSample } from "@/components/money/work-sample";
+import { AppShell, PageHeader, useClientReady } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
-import { useMoney } from "@/lib/money/store";
-import { ADMIN_EMAIL, SHIPPED_WORK } from "@/lib/money/works";
+import { useCurrentUserState } from "@/lib/auth/use-current-user";
+
+const WorkPrivate = lazy(() => import("@/components/desk/work-private"));
 
 export const Route = createFileRoute("/work")({ component: Work });
 
 function Work() {
-  const currency = useMoney((s) => s.profile.currency) || "UGX";
+  const { user, isPending } = useCurrentUserState();
+  const mounted = useClientReady();
+
+  if (!mounted || isPending) {
+    return (
+      <AppShell requireAuth={false}>
+        <div className="mx-auto h-10 w-48 max-w-5xl animate-pulse rounded-md bg-secondary" />
+      </AppShell>
+    );
+  }
+
+  if (!user) {
+    return (
+      <AppShell requireAuth={false}>
+        <PageHeader
+          kicker="Kampala"
+          title="Meridian"
+          description="A private estimate and invoice desk. Sign in to open yours."
+          actions={
+            <Button asChild>
+              <Link to="/login">Sign in</Link>
+            </Button>
+          }
+        />
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>
-      <PageHeader
-        kicker="Lumala Brian"
-        title="Shipped work, with the price"
-        description="Work already shipped. Use these numbers when someone asks for the same kind of site or app."
-        actions={
-          <>
-            <a
-              href={`mailto:${ADMIN_EMAIL}`}
-              className="inline-flex h-11 max-w-full items-center truncate text-sm text-muted-foreground hover:text-foreground"
-            >
-              {ADMIN_EMAIL}
-            </a>
-            <Button asChild>
-              <Link to="/estimate">New estimate</Link>
-            </Button>
-          </>
+      <Suspense
+        fallback={
+          <div className="mx-auto h-10 w-48 max-w-5xl animate-pulse rounded-md bg-secondary" />
         }
-      />
-      <div className="enter enter-2 mx-auto grid max-w-5xl gap-6">
-        {SHIPPED_WORK.map((job) => (
-          <WorkSample
-            key={job.id}
-            job={job}
-            currency={currency}
-            layout="detail"
-          />
-        ))}
-      </div>
+      >
+        <WorkPrivate />
+      </Suspense>
     </AppShell>
   );
 }

@@ -1,46 +1,13 @@
 import { addDaysISO } from "@/lib/utils";
-import type { MoneyState, Profile, RateInputs } from "./types";
-import { ADMIN_EMAIL, SHIPPED_WORK, workLines } from "./works";
+import type { MoneyState } from "./types";
+import { DEFAULT_RATE, emptyDesk } from "./empty-desk";
+import { ADMIN_EMAIL } from "./admin";
+import { SHIPPED_WORK, workLines } from "./works";
 
-export const DEFAULT_RATE: RateInputs = {
-  monthlyTakeHome: 8_000_000,
-  weeksOff: 4,
-  hoursPerWeek: 30,
-  utilization: 0.65,
-  overheadMonthly: 1_500_000,
-  taxRate: 0.3,
-  profitMargin: 0.2,
-  currentRate: 80_000,
-};
+export { emptyDesk };
 
 function seededLines(work: (typeof SHIPPED_WORK)[number], prefix: string) {
   return workLines(work).map((i, n) => ({ ...i, id: `${prefix}-line-${n}` }));
-}
-
-export function emptyDesk(hints?: { name?: string; email?: string }): MoneyState {
-  const name = hints?.name?.trim() || "";
-  const email = hints?.email?.trim() || "";
-  const profile: Profile = {
-    name,
-    company: name,
-    email,
-    phone: "",
-    address: "",
-    city: "",
-    currency: "UGX",
-    paymentTerms: "40% to start, remainder on launch. Estimates valid 14 days.",
-    paymentNote: "",
-    taxId: "",
-    depositPercent: 40,
-  };
-  return {
-    profile,
-    rate: { ...DEFAULT_RATE },
-    clients: [],
-    estimates: [],
-    invoices: [],
-    timeEntries: [],
-  };
 }
 
 export function deskForAccount(hints?: { name?: string; email?: string }): MoneyState {

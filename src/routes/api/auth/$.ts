@@ -85,8 +85,81 @@ function trustArrivalHost(request: Request): void {
   }
 }
 
+function idpForProvider(providerId: string): "google" | "twitter" | null {
+  if (providerId === "grok-google") return "google";
+  if (providerId === "grok-x") return "twitter";
+  return null;
+}
+
+function withIdp(raw: string, idp: string): string {
+  try {
+    const url = new URL(raw);
+    if (!url.pathname.includes("/oauth2/authorize")) return raw;
+    if (url.searchParams.get("idp")) return raw;
+    url.searchParams.set("idp", idp);
+    return url.toString();
+  } catch {
+    return raw;
+  }
+}
+
+async function ensureAuthorizeIdp(response: Response, providerId: string): Promise<Response> {
+  const idp = idpForProvider(providerId);
+  if (!idp) return response;
+
+  const location = response.headers.get("location");
+  if (location) {
+    const next = withIdp(location, idp);
+    if (next !== location) {
+      const headers = new Headers(response.headers);
+      headers.set("location", next);
+      return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+    }
+    return response;
+  }
+
+  const type = response.headers.get("content-type") || "";
+  if (!type.includes("json")) return response;
+  const text = await response.text();
+  try {
+    const data = JSON.parse(text) as { url?: string };
+    if (typeof data.url === "string") {
+      const next = withIdp(data.url, idp);
+      if (next !== data.url) {
+        data.url = next;
+        const headers = new Headers(response.headers);
+        headers.delete("content-length");
+        return Response.json(data, { status: response.status, headers });
+      }
+    }
+  } catch {
+    /* keep the original body */
+  }
+  return new Response(text, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers,
+  });
+}
+
 async function handle(request: Request): Promise<Response> {
   trustArrivalHost(request);
+  let providerId = "";
+  let forwarded = request;
+  if (request.method === "POST") {
+    const text = await request.text();
+    try {
+      const parsed = JSON.parse(text) as { providerId?: unknown };
+      if (typeof parsed.providerId === "string") providerId = parsed.providerId;
+    } catch {
+      /* email sign-in is not JSON */
+    }
+    forwarded = new Request(request.url, {
+      method: "POST",
+      headers: request.headers,
+      body: text,
+    });
+  }
   if (!process.env.DATABASE_URL?.trim()) {
     try {
       const { getPglite } = await import("@/lib/db");
@@ -100,13 +173,14 @@ async function handle(request: Request): Promise<Response> {
     }
   }
   try {
-    const response = await auth.handler(request);
-    if (response.status < 500) return response;
-    const text = await response.clone().text();
-    if (text.trim()) return response;
+    const response = await auth.handler(forwarded);
+    const withProvider = await ensureAuthorizeIdp(response, providerId);
+    if (withProvider.status < 500) return withProvider;
+    const text = await withProvider.clone().text();
+    if (text.trim()) return withProvider;
     return Response.json(
-      { message: "Could not sign in.", detail: `empty ${response.status}` },
-      { status: response.status },
+      { message: "Could not sign in.", detail: `empty ${withProvider.status}` },
+      { status: withProvider.status },
     );
   } catch (err) {
     const detail = err instanceof Error ? err.message : "Could not sign in";

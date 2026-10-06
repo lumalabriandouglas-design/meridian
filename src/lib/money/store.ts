@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { addDaysISO, todayISO, uid } from "@/lib/utils";
 import { amountPaid, computeRates, grandTotal } from "./calc";
 import { nextNumber } from "./format";
-import { deskForAccount, emptyDesk } from "./seed";
+import { emptyDesk } from "./empty-desk";
 import { loadDesk, saveDesk } from "./server";
 import type {
   Client,
@@ -402,12 +402,14 @@ export const useMoney = create<MoneyStore>()((set, get) => ({
 
   resetDemo: () => {
     const current = get();
-    const next = deskForAccount({
-      name: current.profile.name,
-      email: current.profile.email,
+    void import("./seed").then(({ deskForAccount }) => {
+      const next = deskForAccount({
+        name: current.profile.name,
+        email: current.profile.email,
+      });
+      set({ ...next, status: current.status, ownerId: current.ownerId });
+      persist(get, true);
     });
-    set({ ...next, status: current.status, ownerId: current.ownerId });
-    persist(get, true);
   },
 }));
 
