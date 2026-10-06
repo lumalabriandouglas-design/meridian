@@ -43,7 +43,7 @@ function Home() {
   const [featured, ...rest] = SHIPPED_WORK;
 
   return (
-    <AppShell requireAuth={false}>
+    <AppShell>
       <PageHeader
         kicker="Kampala, Uganda"
         title="Lumala Brian"

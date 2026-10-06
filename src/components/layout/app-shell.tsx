@@ -45,10 +45,7 @@ const MORE: { to: Path; label: string; icon: typeof Home }[] = [
   { to: "/studio", label: "Studio", icon: Settings },
 ];
 
-const PUBLIC_NAV: { to: Path; label: string; icon: typeof Home }[] = [
-  { to: "/", label: "Home", icon: Home },
-  { to: "/work", label: "Work", icon: FileText },
-];
+const PUBLIC_NAV: { to: Path; label: string; icon: typeof Home }[] = [];
 
 function useClientReady() {
   const [ready, setReady] = useState(false);
@@ -161,13 +158,19 @@ function ShellFrame({
           </nav>
           <div className="mt-4 space-y-3 border-t border-border px-2 pt-4 text-xs text-muted-foreground">
             <AuthSlot />
-            <p>Lumala Brian</p>
-            <a
-              href={`mailto:${ADMIN_EMAIL}`}
-              className="block truncate hover:text-foreground"
-            >
-              {ADMIN_EMAIL}
-            </a>
+            {signedIn ? (
+              <>
+                <p>Lumala Brian</p>
+                <a
+                  href={`mailto:${ADMIN_EMAIL}`}
+                  className="block truncate hover:text-foreground"
+                >
+                  {ADMIN_EMAIL}
+                </a>
+              </>
+            ) : (
+              <p>Sign in to open the desk</p>
+            )}
           </div>
         </aside>
 
@@ -193,7 +196,7 @@ function ShellFrame({
         <nav
           className={cn(
             "no-print fixed inset-x-0 bottom-0 z-20 grid border-t border-border bg-background/95 px-1 py-1 backdrop-blur-sm lg:hidden",
-            signedIn ? "grid-cols-5" : "grid-cols-3",
+            signedIn ? "grid-cols-5" : "grid-cols-1",
           )}
         >
           {signedIn ? (
@@ -204,12 +207,7 @@ function ShellFrame({
               <NavLink to="/studio" label="Studio" icon={Settings} compact />
             </>
           ) : (
-            <>
-              {PUBLIC_NAV.map((item) => (
-                <NavLink key={item.to} {...item} compact />
-              ))}
-              <NavLink to="/login" label="Sign in" icon={Plus} compact />
-            </>
+            <NavLink to="/login" label="Sign in" icon={Plus} compact />
           )}
         </nav>
       </div>

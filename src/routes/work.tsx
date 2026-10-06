@@ -11,7 +11,7 @@ function Work() {
   const currency = useMoney((s) => s.profile.currency) || "UGX";
 
   return (
-    <AppShell requireAuth={false}>
+    <AppShell>
       <PageHeader
         kicker="Lumala Brian"
         title="Shipped work, with the price"
