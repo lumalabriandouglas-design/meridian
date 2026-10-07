@@ -88,7 +88,7 @@ function WebsiteEstimate() {
     [quoted, pages, yourPrice],
   );
 
-  const autoNotes = notes || websiteOutcomeNotes(quoted, pages);
+  const autoNotes = notes || websiteOutcomeNotes(quoted, pages, profile.depositPercent);
 
   function toggle(id: string) {
     setFeatureIds((prev) =>
@@ -117,7 +117,7 @@ function WebsiteEstimate() {
       status: "draft",
       items: items.map((i) => ({ ...i, id: uid() })),
       notes: autoNotes,
-      taxPercent: 0,
+      taxPercent: profile.vatRegistered ? 18 : 0,
       depositPercent: profile.depositPercent,
       stackLabel: stack.clientLabel,
       showStack,
@@ -332,7 +332,7 @@ function WebsiteEstimate() {
                 untilDate: addDaysISO(14),
                 items,
                 notes: autoNotes,
-                taxPercent: 0,
+                taxPercent: profile.vatRegistered ? 18 : 0,
                 depositPercent: profile.depositPercent,
                 stackLabel: stack.clientLabel,
                 showStack,

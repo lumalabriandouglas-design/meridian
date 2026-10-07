@@ -114,7 +114,7 @@ function AutoEstimate() {
       notes:
         notes ||
         `${job.blurb} Labour ${formatHours(laborHours)}. Parts priced as listed — subject to what we find on the car.`,
-      taxPercent: 0,
+      taxPercent: profile.vatRegistered ? 18 : 0,
       depositPercent: 0,
       stackLabel: "",
       showStack: false,
@@ -311,7 +311,7 @@ function AutoEstimate() {
               notes:
                 notes ||
                 `${job.blurb} Labour ${formatHours(laborHours)}.`,
-              taxPercent: 0,
+              taxPercent: profile.vatRegistered ? 18 : 0,
             }}
           />
         </aside>

@@ -7,13 +7,23 @@ import { MoneyField } from "@/components/money-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
   amountPaid,
   depositDue,
   grandTotal,
+  itemsSubtotal,
+  withholdingAmount,
 } from "@/lib/money/calc";
-import { formatMoney, paymentMethodLabel } from "@/lib/money/format";
+import {
+  formatMoney,
+  paymentMethodLabel,
+  USD_AS_OF_PLACEHOLDER,
+  USD_RATE_HINT,
+  USD_RATE_PLACEHOLDER,
+} from "@/lib/money/format";
+import { LINE_PRESETS } from "@/lib/money/playbooks";
 import type {
   Invoice,
   InvoiceStatus,
@@ -57,11 +67,14 @@ function InvoiceDetail() {
   }
 
   const row = invoice;
-  const status = derivedInvoiceStatus(row);
-  const total = grandTotal(row.items, row.taxPercent);
+  const status = derivedInvoiceStatus(row, profile.vatRegistered);
+  const taxPercent = profile.vatRegistered ? row.taxPercent : 0;
+  const total = grandTotal(row.items, taxPercent);
   const paid = amountPaid(row.payments);
   const balance = Math.max(0, total - paid);
   const deposit = depositDue(total, profile.depositPercent);
+  const wht = withholdingAmount(itemsSubtotal(row.items), row.withholdTax);
+  const whtRecorded = (row.payments ?? []).some((p) => p.method === "wht");
   const amount = payAmount ?? balance;
 
   function patch(next: Partial<Invoice>) {
@@ -166,16 +179,18 @@ function InvoiceDetail() {
                 ))}
               </select>
             </Field>
-            <Field label="VAT %">
-              <Input
-                type="number"
-                min={0}
-                value={row.taxPercent}
-                onChange={(e) =>
-                  patch({ taxPercent: Number(e.target.value) || 0 })
-                }
-              />
-            </Field>
+            {profile.vatRegistered ? (
+              <Field label="VAT %">
+                <Input
+                  type="number"
+                  min={0}
+                  value={row.taxPercent}
+                  onChange={(e) =>
+                    patch({ taxPercent: Number(e.target.value) || 0 })
+                  }
+                />
+              </Field>
+            ) : null}
           </div>
 
           <div className="space-y-2">
@@ -214,7 +229,74 @@ function InvoiceDetail() {
             >
               Add line
             </Button>
+            <div className="flex flex-wrap gap-2">
+              {LINE_PRESETS.map((preset) => (
+                <Button
+                  key={preset.id}
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() =>
+                    patch({
+                      items: [
+                        ...row.items,
+                        {
+                          ...emptyItem(),
+                          description: preset.description,
+                          rate: preset.rate,
+                        },
+                      ],
+                    })
+                  }
+                >
+                  {preset.description}
+                </Button>
+              ))}
+            </div>
           </div>
+
+          <label className="flex items-center justify-between gap-3 text-sm">
+            <span>Client withholds 6% WHT</span>
+            <Switch
+              checked={Boolean(row.withholdTax)}
+              onCheckedChange={(on) => patch({ withholdTax: on })}
+            />
+          </label>
+          <label className="flex items-center justify-between gap-3 text-sm">
+            <span>Also show USD</span>
+            <Switch
+              checked={Boolean(row.showUsd)}
+              onCheckedChange={(on) =>
+                patch({
+                  showUsd: on,
+                  usdRate: row.usdRate || USD_RATE_PLACEHOLDER,
+                  usdAsOf: row.usdAsOf || USD_AS_OF_PLACEHOLDER,
+                })
+              }
+            />
+          </label>
+          {row.showUsd ? (
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="UGX per USD">
+                <Input
+                  type="number"
+                  min={1}
+                  placeholder={String(USD_RATE_PLACEHOLDER)}
+                  value={row.usdRate || ""}
+                  onChange={(e) =>
+                    patch({ usdRate: Number(e.target.value) || 0 })
+                  }
+                />
+              </Field>
+              <Field label="Rate date">
+                <Input
+                  placeholder={USD_RATE_HINT}
+                  value={row.usdAsOf ?? ""}
+                  onChange={(e) => patch({ usdAsOf: e.target.value })}
+                />
+              </Field>
+            </div>
+          ) : null}
 
           <section className="rounded-xl bg-card p-4 shadow-[var(--shadow-border)]">
             <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
@@ -312,6 +394,20 @@ function InvoiceDetail() {
                   >
                     Full balance
                   </Button>
+                  {row.withholdTax && wht > 0 && !whtRecorded ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => {
+                        setPayMethod("wht");
+                        setPayAmount(Math.min(Math.round(wht), balance));
+                        setPayNote("WHT certificate");
+                      }}
+                    >
+                      WHT certificate
+                    </Button>
+                  ) : null}
                 </div>
                 <Field label="This payment">
                   <MoneyField
@@ -393,6 +489,10 @@ function InvoiceDetail() {
               notes: row.notes,
               taxPercent: row.taxPercent,
               paidToDate: paid,
+              withholdTax: row.withholdTax,
+              showUsd: row.showUsd,
+              usdRate: row.usdRate,
+              usdAsOf: row.usdAsOf,
             }}
           />
         </div>

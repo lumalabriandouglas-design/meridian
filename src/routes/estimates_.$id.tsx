@@ -7,7 +7,14 @@ import { MoneyField } from "@/components/money-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  USD_AS_OF_PLACEHOLDER,
+  USD_RATE_HINT,
+  USD_RATE_PLACEHOLDER,
+} from "@/lib/money/format";
+import { LINE_PRESETS } from "@/lib/money/playbooks";
 import type { Estimate, EstimateStatus, LineItem } from "@/lib/money/types";
 import { emptyItem, useMoney } from "@/lib/money/store";
 
@@ -133,16 +140,18 @@ function EstimateDetail() {
                 ))}
               </select>
             </Field>
-            <Field label="VAT %">
-              <Input
-                type="number"
-                min={0}
-                value={row.taxPercent}
-                onChange={(e) =>
-                  patch({ taxPercent: Number(e.target.value) || 0 })
-                }
-              />
-            </Field>
+            {profile.vatRegistered ? (
+              <Field label="VAT %">
+                <Input
+                  type="number"
+                  min={0}
+                  value={row.taxPercent}
+                  onChange={(e) =>
+                    patch({ taxPercent: Number(e.target.value) || 0 })
+                  }
+                />
+              </Field>
+            ) : null}
           </div>
 
           <div className="space-y-2">
@@ -181,6 +190,30 @@ function EstimateDetail() {
             >
               Add line
             </Button>
+            <div className="flex flex-wrap gap-2">
+              {LINE_PRESETS.map((preset) => (
+                <Button
+                  key={preset.id}
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() =>
+                    patch({
+                      items: [
+                        ...row.items,
+                        {
+                          ...emptyItem(),
+                          description: preset.description,
+                          rate: preset.rate,
+                        },
+                      ],
+                    })
+                  }
+                >
+                  {preset.description}
+                </Button>
+              ))}
+            </div>
           </div>
 
           <Field label="Notes">
@@ -189,6 +222,42 @@ function EstimateDetail() {
               onChange={(e) => patch({ notes: e.target.value })}
             />
           </Field>
+
+          <label className="flex items-center justify-between gap-3 text-sm">
+            <span>Also show USD</span>
+            <Switch
+              checked={Boolean(row.showUsd)}
+              onCheckedChange={(on) =>
+                patch({
+                  showUsd: on,
+                  usdRate: row.usdRate || USD_RATE_PLACEHOLDER,
+                  usdAsOf: row.usdAsOf || USD_AS_OF_PLACEHOLDER,
+                })
+              }
+            />
+          </label>
+          {row.showUsd ? (
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="UGX per USD">
+                <Input
+                  type="number"
+                  min={1}
+                  placeholder={String(USD_RATE_PLACEHOLDER)}
+                  value={row.usdRate || ""}
+                  onChange={(e) =>
+                    patch({ usdRate: Number(e.target.value) || 0 })
+                  }
+                />
+              </Field>
+              <Field label="Rate date">
+                <Input
+                  placeholder={USD_RATE_HINT}
+                  value={row.usdAsOf ?? ""}
+                  onChange={(e) => patch({ usdAsOf: e.target.value })}
+                />
+              </Field>
+            </div>
+          ) : null}
 
           <Button
             variant="ghost"
@@ -220,6 +289,9 @@ function EstimateDetail() {
               depositPercent: row.depositPercent,
               stackLabel: row.stackLabel,
               showStack: row.showStack,
+              showUsd: row.showUsd,
+              usdRate: row.usdRate,
+              usdAsOf: row.usdAsOf,
             }}
           />
         </div>

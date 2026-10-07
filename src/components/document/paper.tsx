@@ -1,11 +1,13 @@
 import {
   amountPaid,
   depositDue,
-  grandTotal,
   itemsSubtotal,
+  MOMO_TX_MAX,
+  netPayable,
   taxAmount,
+  withholdingAmount,
 } from "@/lib/money/calc";
-import { formatMoney, paymentMethodLabel } from "@/lib/money/format";
+import { formatMoney, formatUsdLine, paymentLines, paymentMethodLabel } from "@/lib/money/format";
 import type {
   Currency,
   Invoice,
@@ -33,6 +35,10 @@ export type PaperDoc = {
   showStack?: boolean;
   status?: string;
   paidToDate?: number;
+  withholdTax?: boolean;
+  showUsd?: boolean;
+  usdRate?: number;
+  usdAsOf?: string;
 };
 
 export function DocumentPaper({
@@ -47,8 +53,11 @@ export function DocumentPaper({
   className?: string;
 }) {
   const sub = itemsSubtotal(doc.items);
-  const tax = taxAmount(sub, doc.taxPercent);
-  const total = grandTotal(doc.items, doc.taxPercent);
+  const taxPercent = profile.vatRegistered ? doc.taxPercent : 0;
+  const tax = taxAmount(sub, taxPercent);
+  const total = sub + tax;
+  const withheld = withholdingAmount(sub, doc.withholdTax);
+  const net = netPayable(total, withheld);
   const deposit =
     doc.depositPercent && doc.depositPercent > 0
       ? depositDue(total, doc.depositPercent)
@@ -57,6 +66,14 @@ export function DocumentPaper({
   const showPaid = doc.paidToDate != null;
   const balance = Math.max(0, total - paid);
   const settled = showPaid && total > 0 && paid >= total;
+  const kindLabel =
+    doc.kindLabel === "Invoice" && profile.vatRegistered ? "VAT invoice" : doc.kindLabel;
+  const payTo = paymentLines(profile);
+  const dueNow = showPaid ? balance : total;
+  const usd =
+    doc.showUsd && (doc.usdRate ?? 0) > 0
+      ? formatUsdLine(total, doc.usdRate ?? 0, doc.usdAsOf ?? "")
+      : "";
 
   return (
     <article
@@ -75,10 +92,13 @@ export function DocumentPaper({
               .filter(Boolean)
               .join("\n")}
           </p>
+          {profile.vatRegistered && profile.taxId ? (
+            <p className="mt-2 text-sm text-paper-muted">TIN {profile.taxId}</p>
+          ) : null}
         </div>
         <div className="text-right">
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-paper-muted">
-            {doc.kindLabel}
+            {kindLabel}
           </p>
           <p className="mt-1 font-serif text-2xl tabular-nums">{doc.number}</p>
           <p className="mt-3 text-sm text-paper-muted">
@@ -142,9 +162,9 @@ export function DocumentPaper({
 
       <section className="mt-6 ml-auto w-full max-w-xs space-y-2 text-sm">
         <Row label="Subtotal" value={formatMoney(sub, currency)} />
-        {doc.taxPercent > 0 ? (
+        {taxPercent > 0 ? (
           <Row
-            label={`VAT ${doc.taxPercent}%`}
+            label={`VAT ${taxPercent}%`}
             value={formatMoney(tax, currency)}
           />
         ) : null}
@@ -153,6 +173,13 @@ export function DocumentPaper({
           value={formatMoney(total, currency)}
           strong
         />
+        {doc.withholdTax ? (
+          <>
+            <Row label="Less WHT 6%" value={formatMoney(withheld, currency)} />
+            <Row label="Net payable" value={formatMoney(net, currency)} strong />
+          </>
+        ) : null}
+        {usd ? <p className="text-xs text-paper-muted">{usd}</p> : null}
         {deposit > 0 && !showPaid ? (
           <Row
             label={`Deposit ${doc.depositPercent}%`}
@@ -177,9 +204,14 @@ export function DocumentPaper({
         </p>
       ) : null}
 
-      {profile.paymentNote ? (
-        <p className="mt-6 max-w-prose text-sm text-paper-muted">
-          {profile.paymentNote}
+      {payTo.length ? (
+        <p className="mt-6 max-w-prose whitespace-pre-line text-sm text-paper-muted">
+          {payTo.join("\n")}
+        </p>
+      ) : null}
+      {dueNow > MOMO_TX_MAX ? (
+        <p className="mt-2 max-w-prose text-sm text-paper-muted">
+          Mobile money max is UGX 5M per transaction. Pay in parts or by bank.
         </p>
       ) : null}
 
@@ -203,10 +235,20 @@ export function ReceiptPaper({
   payment: Payment;
   className?: string;
 }) {
-  const total = grandTotal(invoice.items, invoice.taxPercent);
+  const taxPercent = profile.vatRegistered ? invoice.taxPercent : 0;
+  const sub = itemsSubtotal(invoice.items);
+  const total = sub + taxAmount(sub, taxPercent);
+  const withheld = withholdingAmount(sub, invoice.withholdTax);
+  const net = netPayable(total, withheld);
   const paid = amountPaid(invoice.payments);
   const balance = Math.max(0, total - paid);
   const settled = total > 0 && paid >= total;
+  const payTo = paymentLines(profile);
+  const certificate = payment.method === "wht";
+  const usd =
+    invoice.showUsd && (invoice.usdRate ?? 0) > 0
+      ? formatUsdLine(total, invoice.usdRate ?? 0, invoice.usdAsOf ?? "")
+      : "";
 
   return (
     <article
@@ -225,6 +267,9 @@ export function ReceiptPaper({
               .filter(Boolean)
               .join("\n")}
           </p>
+          {profile.vatRegistered && profile.taxId ? (
+            <p className="mt-2 text-sm text-paper-muted">TIN {profile.taxId}</p>
+          ) : null}
         </div>
         <div className="text-right">
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-paper-muted">
@@ -269,16 +314,23 @@ export function ReceiptPaper({
           settled ? "text-4xl" : "text-3xl",
         )}
       >
-        {settled ? "Paid in full" : "Payment received"}
+        {certificate ? "WHT certificate" : settled ? "Paid in full" : "Payment received"}
       </p>
 
       <section className="mt-8 ml-auto w-full max-w-xs space-y-2 text-sm">
         <Row
-          label="This payment"
+          label={certificate ? "WHT certificate" : "This payment"}
           value={formatMoney(payment.amount, currency)}
           strong
         />
         <Row label="Invoice total" value={formatMoney(total, currency)} />
+        {invoice.withholdTax ? (
+          <>
+            <Row label="Less WHT 6%" value={formatMoney(withheld, currency)} />
+            <Row label="Net payable" value={formatMoney(net, currency)} />
+          </>
+        ) : null}
+        {usd ? <p className="text-xs text-paper-muted">{usd}</p> : null}
         <Row label="Paid to date" value={formatMoney(paid, currency)} />
         <Row
           label={settled ? "Balance" : "Still due"}
@@ -292,9 +344,14 @@ export function ReceiptPaper({
         </p>
       ) : null}
 
-      {profile.paymentNote ? (
-        <p className="mt-6 max-w-prose text-sm text-paper-muted">
-          {profile.paymentNote}
+      {payTo.length ? (
+        <p className="mt-6 max-w-prose whitespace-pre-line text-sm text-paper-muted">
+          {payTo.join("\n")}
+        </p>
+      ) : null}
+      {balance > MOMO_TX_MAX ? (
+        <p className="mt-2 max-w-prose text-sm text-paper-muted">
+          Mobile money max is UGX 5M per transaction. Pay in parts or by bank.
         </p>
       ) : null}
     </article>

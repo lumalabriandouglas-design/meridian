@@ -47,7 +47,7 @@ export const SITE_TYPES: SiteType[] = [
     blurb: "The Binti kind: story, pages, contact — a real firm online.",
     pagesIncluded: 6,
     hours: 36,
-    listPrice: 3_500_000,
+    listPrice: 3_000_000,
   },
   {
     id: "portfolio",
@@ -55,7 +55,7 @@ export const SITE_TYPES: SiteType[] = [
     blurb: "Work on display. Built to get you hired or booked.",
     pagesIncluded: 5,
     hours: 24,
-    listPrice: 2_200_000,
+    listPrice: 1_500_000,
   },
   {
     id: "shop",
@@ -63,7 +63,7 @@ export const SITE_TYPES: SiteType[] = [
     blurb: "Catalogue, cart, checkout. Sell without sitting in the store.",
     pagesIncluded: 8,
     hours: 64,
-    listPrice: 7_500_000,
+    listPrice: 6_000_000,
   },
   {
     id: "booking",
@@ -71,7 +71,7 @@ export const SITE_TYPES: SiteType[] = [
     blurb: "Services, calendar, appointments. For salons, clinics, studios.",
     pagesIncluded: 6,
     hours: 48,
-    listPrice: 5_000_000,
+    listPrice: 4_500_000,
   },
   {
     id: "membership",
@@ -422,9 +422,16 @@ export function scaleOutcomeLines(
   }));
 }
 
+export const LINE_PRESETS = [
+  { id: "care", description: "Monthly care", rate: 150_000 },
+  { id: "logo", description: "Logo", rate: 500_000 },
+  { id: "brand", description: "Brand kit", rate: 1_500_000 },
+] as const;
+
 export function websiteOutcomeNotes(
   quoted: WebsiteQuoteResult,
   pages: number,
+  depositPercent = 50,
 ): string {
   const parts = [
     `This covers a ${quoted.type.name.toLowerCase()}: ${quoted.type.blurb.replace(/\.$/, "")}.`,
@@ -438,6 +445,7 @@ export function websiteOutcomeNotes(
     );
   }
   if (quoted.rush) parts.push("Rush — under two weeks.");
-  parts.push("40% to start, remainder on launch.");
+  const pct = Math.max(0, Math.round(depositPercent));
+  parts.push(`${pct}% to start, balance before launch.`);
   return parts.join(" ");
 }

@@ -11,6 +11,7 @@ export const PAYMENT_METHODS = [
   { id: "bank", label: "Bank transfer" },
   { id: "cash", label: "Cash" },
   { id: "card", label: "Card" },
+  { id: "wht", label: "WHT certificate" },
   { id: "other", label: "Other" },
 ] as const;
 
@@ -44,6 +45,17 @@ export type Profile = {
   paymentNote: string;
   taxId: string;
   depositPercent: number;
+  /** Off unless the studio is VAT-registered. */
+  vatRegistered: boolean;
+  mtnNumber: string;
+  mtnName: string;
+  airtelNumber: string;
+  airtelName: string;
+  bankName: string;
+  bankAccountName: string;
+  bankAccountNumber: string;
+  bankBranch: string;
+  bankSwift: string;
 };
 
 export type RateInputs = {
@@ -52,7 +64,9 @@ export type RateInputs = {
   hoursPerWeek: number;
   utilization: number;
   overheadMonthly: number;
+  /** Used only when taxManual is on. Otherwise URA bands decide the rate. */
   taxRate: number;
+  taxManual: boolean;
   profitMargin: number;
   currentRate: number;
 };
@@ -85,6 +99,9 @@ export type Estimate = {
   stackLabel: string;
   showStack: boolean;
   hours: number;
+  showUsd?: boolean;
+  usdRate?: number;
+  usdAsOf?: string;
   createdAt: string;
 };
 
@@ -102,6 +119,11 @@ export type Invoice = {
   items: LineItem[];
   notes: string;
   taxPercent: number;
+  /** Client remits 6% withholding tax and should send a certificate. */
+  withholdTax?: boolean;
+  showUsd?: boolean;
+  usdRate?: number;
+  usdAsOf?: string;
   payments: Payment[];
   createdAt: string;
 };

@@ -11,7 +11,8 @@ export const Route = createFileRoute("/invoices")({ component: Invoices });
 
 function Invoices() {
   const invoices = useMoney((s) => s.invoices);
-  const currency = useMoney((s) => s.profile.currency);
+  const profile = useMoney((s) => s.profile);
+  const currency = profile.currency;
   const saveInvoice = useMoney((s) => s.saveInvoice);
   const navigate = useNavigate();
 
@@ -35,7 +36,7 @@ function Invoices() {
                 status: "draft",
                 items: [emptyItem()],
                 notes: "",
-                taxPercent: 0,
+                taxPercent: profile.vatRegistered ? 18 : 0,
                 payments: [],
               });
               void navigate({ to: "/invoices/$id", params: { id } });
@@ -52,8 +53,11 @@ function Invoices() {
           </li>
         ) : (
           invoices.map((row) => {
-            const status = derivedInvoiceStatus(row);
-            const total = grandTotal(row.items, row.taxPercent);
+            const status = derivedInvoiceStatus(row, profile.vatRegistered);
+            const total = grandTotal(
+              row.items,
+              profile.vatRegistered ? row.taxPercent : 0,
+            );
             const paid = amountPaid(row.payments);
             const due = Math.max(0, total - paid);
             return (

@@ -1,15 +1,25 @@
 import type { MoneyState, Profile, RateInputs } from "./types";
 
+export const DEFAULT_TERMS =
+  "50% to start, balance before launch. Estimate valid 14 days. Prices in UGX.";
+
 export const DEFAULT_RATE: RateInputs = {
-  monthlyTakeHome: 8_000_000,
-  weeksOff: 4,
-  hoursPerWeek: 30,
-  utilization: 0.65,
-  overheadMonthly: 1_500_000,
-  taxRate: 0.3,
-  profitMargin: 0.2,
+  monthlyTakeHome: 4_000_000,
+  weeksOff: 6,
+  hoursPerWeek: 40,
+  utilization: 0.6,
+  overheadMonthly: 1_000_000,
+  taxRate: 0.28,
+  taxManual: false,
+  profitMargin: 0.15,
   currentRate: 80_000,
 };
+
+export const RATE_PRESETS = [
+  { id: "junior", label: "Junior", monthlyTakeHome: 2_000_000, overheadMonthly: 700_000 },
+  { id: "mid", label: "Mid", monthlyTakeHome: 4_000_000, overheadMonthly: 1_000_000 },
+  { id: "senior", label: "Senior", monthlyTakeHome: 7_000_000, overheadMonthly: 1_300_000 },
+] as const;
 
 export function emptyDesk(hints?: { name?: string; email?: string }): MoneyState {
   const name = hints?.name?.trim() || "";
@@ -22,10 +32,20 @@ export function emptyDesk(hints?: { name?: string; email?: string }): MoneyState
     address: "",
     city: "",
     currency: "UGX",
-    paymentTerms: "40% to start, remainder on launch. Estimates valid 14 days.",
+    paymentTerms: DEFAULT_TERMS,
     paymentNote: "",
     taxId: "",
-    depositPercent: 40,
+    depositPercent: 50,
+    vatRegistered: false,
+    mtnNumber: "",
+    mtnName: "",
+    airtelNumber: "",
+    airtelName: "",
+    bankName: "",
+    bankAccountName: "",
+    bankAccountNumber: "",
+    bankBranch: "",
+    bankSwift: "",
   };
   return {
     profile,

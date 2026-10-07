@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { formatMoney } from "@/lib/money/format";
 import { emptyItem, useMoney } from "@/lib/money/store";
 import type { ClientDraft, LineItem } from "@/lib/money/types";
+import { LINE_PRESETS } from "@/lib/money/playbooks";
 import { workById, workLines } from "@/lib/money/works";
 import { addDaysISO, todayISO, uid } from "@/lib/utils";
 
@@ -63,7 +64,7 @@ function CustomEstimate() {
       status: "draft",
       items: items.map((i) => ({ ...i, id: i.id || uid() })),
       notes,
-      taxPercent: 0,
+      taxPercent: profile.vatRegistered ? 18 : 0,
       depositPercent: profile.depositPercent,
       stackLabel: "",
       showStack: false,
@@ -144,14 +145,38 @@ function CustomEstimate() {
                   />
                 </div>
                 {index === items.length - 1 ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="col-span-12"
-                    onClick={() => setItems((rows) => [...rows, emptyItem()])}
-                  >
-                    Add line
-                  </Button>
+                  <>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="col-span-12"
+                      onClick={() => setItems((rows) => [...rows, emptyItem()])}
+                    >
+                      Add line
+                    </Button>
+                    <div className="col-span-12 flex flex-wrap gap-2">
+                      {LINE_PRESETS.map((preset) => (
+                        <Button
+                          key={preset.id}
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() =>
+                            setItems((rows) => [
+                              ...rows,
+                              {
+                                ...emptyItem(),
+                                description: preset.description,
+                                rate: preset.rate,
+                              },
+                            ])
+                          }
+                        >
+                          {preset.description}
+                        </Button>
+                      ))}
+                    </div>
+                  </>
                 ) : null}
               </div>
             ))}
@@ -184,7 +209,7 @@ function CustomEstimate() {
               untilDate: addDaysISO(14),
               items,
               notes,
-              taxPercent: 0,
+              taxPercent: profile.vatRegistered ? 18 : 0,
               depositPercent: profile.depositPercent,
             }}
           />

@@ -1,4 +1,44 @@
-import type { Currency } from "./types";
+import type { Currency, Profile } from "./types";
+
+export const USD_RATE_PLACEHOLDER = 4025;
+export const USD_AS_OF_PLACEHOLDER = "5 Oct 2026";
+export const USD_RATE_HINT = "BoU mid 5 Oct 2026, edit before sending";
+
+export function formatUsdLine(ugx: number, rate: number, asOf: string): string {
+  const perDollar = rate > 0 ? rate : USD_RATE_PLACEHOLDER;
+  const dollars = ugx / perDollar;
+  const usd = dollars.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  const fx = perDollar.toLocaleString("en-US");
+  const when = asOf.trim() || USD_AS_OF_PLACEHOLDER;
+  return `≈ USD ${usd} at ${fx} UGX/USD on ${when}`;
+}
+
+export function paymentLines(profile: Profile): string[] {
+  const lines: string[] = [];
+  if (profile.mtnNumber?.trim()) {
+    lines.push(
+      `MTN MoMo ${profile.mtnNumber.trim()}${profile.mtnName?.trim() ? ` · ${profile.mtnName.trim()}` : ""}`,
+    );
+  }
+  if (profile.airtelNumber?.trim()) {
+    lines.push(
+      `Airtel Money ${profile.airtelNumber.trim()}${profile.airtelName?.trim() ? ` · ${profile.airtelName.trim()}` : ""}`,
+    );
+  }
+  const bank = [
+    profile.bankName?.trim(),
+    profile.bankAccountName?.trim(),
+    profile.bankAccountNumber?.trim(),
+    profile.bankBranch?.trim() ? `Branch ${profile.bankBranch.trim()}` : "",
+    profile.bankSwift?.trim() ? `SWIFT ${profile.bankSwift.trim()}` : "",
+  ].filter(Boolean);
+  if (bank.length) lines.push(bank.join(" · "));
+  if (!lines.length && profile.paymentNote?.trim()) lines.push(profile.paymentNote.trim());
+  return lines;
+}
 
 const ZERO_DECIMAL: Record<string, true> = {
   UGX: true,
@@ -77,6 +117,8 @@ export function paymentMethodLabel(method: string): string {
       return "Cash";
     case "card":
       return "Card";
+    case "wht":
+      return "WHT certificate";
     default:
       return "Other";
   }

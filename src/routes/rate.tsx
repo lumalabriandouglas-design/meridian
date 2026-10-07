@@ -5,8 +5,11 @@ import { MoneyField } from "@/components/money-field";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { computeRates } from "@/lib/money/calc";
+import { RATE_PRESETS } from "@/lib/money/empty-desk";
 import { formatHours, formatMoney } from "@/lib/money/format";
 import { useMoney } from "@/lib/money/store";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 
 export const Route = createFileRoute("/rate")({ component: RateLab });
 
@@ -25,11 +28,30 @@ function RateLab() {
       <PageHeader
         kicker="Rate lab"
         title="The number you do not go below"
-        description="Monthly take-home in UGX, weeks off, how much of your week is actually billable. Then three rates: floor, recommended, premium."
+        description="Monthly take-home in UGX, weeks off, how much of your week is actually billable. Tax follows the URA 2026/27 bands unless you override it."
       />
 
       <div className="mx-auto grid max-w-5xl gap-6 lg:grid-cols-12">
         <div className="space-y-8 rounded-xl bg-card p-6 shadow-[var(--shadow-border)] lg:col-span-7">
+          <div className="flex flex-wrap gap-2">
+            {RATE_PRESETS.map((preset) => (
+              <Button
+                key={preset.id}
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={() =>
+                  setRate({
+                    monthlyTakeHome: preset.monthlyTakeHome,
+                    overheadMonthly: preset.overheadMonthly,
+                    taxManual: false,
+                  })
+                }
+              >
+                {preset.label}
+              </Button>
+            ))}
+          </div>
           <Field
             label="What you need to take home each month"
             value={formatMoney(rate.monthlyTakeHome, c)}
@@ -92,15 +114,42 @@ function RateLab() {
               Rent, internet, software, a boda, the accountant.
             </p>
           </Field>
-          <Range
-            label="Tax"
-            value={`${Math.round(rate.taxRate * 100)}%`}
-            min={0}
-            max={0.4}
-            step={0.01}
-            current={rate.taxRate}
-            onChange={(n) => setRate({ taxRate: n })}
-          />
+          <div>
+            <div className="flex items-baseline justify-between gap-3">
+              <Label>Effective tax</Label>
+              <span className="text-sm tabular-nums text-muted-foreground">
+                {Math.round(math.effectiveTax * 100)}%
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              URA 2026/27 bands, guidance only. Overhead is not grossed up.
+            </p>
+            <label className="mt-3 flex items-center justify-between gap-3 text-sm">
+              <span>Set the tax percent yourself</span>
+              <Switch
+                checked={Boolean(rate.taxManual)}
+                onCheckedChange={(on) =>
+                  setRate({
+                    taxManual: on,
+                    taxRate: on ? math.effectiveTax : rate.taxRate,
+                  })
+                }
+              />
+            </label>
+            {rate.taxManual ? (
+              <div className="mt-3">
+                <Range
+                  label="Manual tax"
+                  value={`${Math.round(rate.taxRate * 100)}%`}
+                  min={0}
+                  max={0.45}
+                  step={0.01}
+                  current={rate.taxRate}
+                  onChange={(n) => setRate({ taxRate: n, taxManual: true })}
+                />
+              </div>
+            ) : null}
+          </div>
           <Range
             label="Profit on top"
             value={`${Math.round(rate.profitMargin * 100)}%`}

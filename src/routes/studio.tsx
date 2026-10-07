@@ -4,8 +4,7 @@ import { AppShell, PageHeader } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { CURRENCIES } from "@/lib/money/types";
+import { Switch } from "@/components/ui/switch";
 import { useMoney } from "@/lib/money/store";
 
 export const Route = createFileRoute("/studio")({ component: Studio });
@@ -20,7 +19,7 @@ function Studio() {
       <PageHeader
         kicker="Studio"
         title="Your letterhead"
-        description="This is what prints on every estimate. Main currency is Ugandan shillings."
+        description="This is what prints on every estimate. Amounts stay in Ugandan shillings."
       />
       <div className="mx-auto grid max-w-3xl gap-5">
         <div className="grid gap-4 rounded-xl bg-card p-5 shadow-[var(--shadow-border)] sm:grid-cols-2">
@@ -60,24 +59,6 @@ function Studio() {
               onChange={(e) => setProfile({ city: e.target.value })}
             />
           </Field>
-          <Field label="Currency">
-            <select
-              className="flex h-11 w-full rounded-md bg-secondary px-3 text-sm shadow-[var(--shadow-border)]"
-              value={profile.currency}
-              onChange={(e) =>
-                setProfile({
-                  currency: e.target.value as (typeof CURRENCIES)[number],
-                })
-              }
-            >
-              {CURRENCIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                  {c === "UGX" ? " — default" : ""}
-                </option>
-              ))}
-            </select>
-          </Field>
           <Field label="Deposit %">
             <Input
               type="number"
@@ -89,16 +70,92 @@ function Studio() {
               }
             />
           </Field>
+          <div className="sm:col-span-2 flex items-center justify-between gap-3 rounded-md bg-secondary px-3 py-3">
+            <div>
+              <p className="text-sm">VAT registered</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Uganda’s VAT threshold is UGX 300M a year. Off: nothing is
+                printed. On: invoices default to 18% and show your TIN.
+              </p>
+            </div>
+            <Switch
+              checked={Boolean(profile.vatRegistered)}
+              onCheckedChange={(on) => setProfile({ vatRegistered: on })}
+            />
+          </div>
+          <Field label="TIN" className="sm:col-span-2">
+            <Input
+              value={profile.taxId}
+              onChange={(e) => setProfile({ taxId: e.target.value })}
+              placeholder="Only printed on a VAT invoice"
+            />
+          </Field>
           <Field label="Payment terms" className="sm:col-span-2">
             <Input
               value={profile.paymentTerms}
               onChange={(e) => setProfile({ paymentTerms: e.target.value })}
             />
           </Field>
-          <Field label="How they pay (MoMo, bank)" className="sm:col-span-2">
-            <Textarea
-              value={profile.paymentNote}
-              onChange={(e) => setProfile({ paymentNote: e.target.value })}
+          <p className="sm:col-span-2 text-xs text-muted-foreground">
+            Amounts are stored in UGX. Show dollars on an individual estimate or
+            invoice when you want a conversion — nothing here relabels the numbers.
+          </p>
+        </div>
+
+        <div className="grid gap-4 rounded-xl bg-card p-5 shadow-[var(--shadow-border)] sm:grid-cols-2">
+          <p className="sm:col-span-2 text-sm font-medium">How they pay</p>
+          <Field label="MTN MoMo number">
+            <Input
+              value={profile.mtnNumber}
+              onChange={(e) => setProfile({ mtnNumber: e.target.value })}
+            />
+          </Field>
+          <Field label="MTN registered name">
+            <Input
+              value={profile.mtnName}
+              onChange={(e) => setProfile({ mtnName: e.target.value })}
+            />
+          </Field>
+          <Field label="Airtel Money number">
+            <Input
+              value={profile.airtelNumber}
+              onChange={(e) => setProfile({ airtelNumber: e.target.value })}
+            />
+          </Field>
+          <Field label="Airtel registered name">
+            <Input
+              value={profile.airtelName}
+              onChange={(e) => setProfile({ airtelName: e.target.value })}
+            />
+          </Field>
+          <Field label="Bank">
+            <Input
+              value={profile.bankName}
+              onChange={(e) => setProfile({ bankName: e.target.value })}
+            />
+          </Field>
+          <Field label="Account name">
+            <Input
+              value={profile.bankAccountName}
+              onChange={(e) => setProfile({ bankAccountName: e.target.value })}
+            />
+          </Field>
+          <Field label="Account number">
+            <Input
+              value={profile.bankAccountNumber}
+              onChange={(e) => setProfile({ bankAccountNumber: e.target.value })}
+            />
+          </Field>
+          <Field label="Branch">
+            <Input
+              value={profile.bankBranch}
+              onChange={(e) => setProfile({ bankBranch: e.target.value })}
+            />
+          </Field>
+          <Field label="SWIFT (optional)" className="sm:col-span-2">
+            <Input
+              value={profile.bankSwift}
+              onChange={(e) => setProfile({ bankSwift: e.target.value })}
             />
           </Field>
         </div>

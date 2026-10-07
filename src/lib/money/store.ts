@@ -114,8 +114,8 @@ function receiptNumbers(invoices: Invoice[]): string[] {
   return invoices.flatMap((inv) => (inv.payments ?? []).map((p) => p.number));
 }
 
-function withInvoiceStatus(inv: Invoice): Invoice {
-  const total = grandTotal(inv.items, inv.taxPercent);
+function withInvoiceStatus(inv: Invoice, vatRegistered: boolean): Invoice {
+  const total = grandTotal(inv.items, vatRegistered ? inv.taxPercent : 0);
   const paid = amountPaid(inv.payments);
   if (inv.status === "draft" && paid <= 0) return inv;
   if (total > 0 && paid >= total) return { ...inv, status: "paid" };
@@ -245,13 +245,16 @@ export const useMoney = create<MoneyStore>()((set, get) => ({
         "INV",
         get().invoices.map((e) => e.number),
       );
-    const row: Invoice = withInvoiceStatus({
-      ...input,
-      id,
-      number,
-      payments: input.payments ?? current?.payments ?? [],
-      createdAt: current?.createdAt ?? todayISO(),
-    });
+    const row: Invoice = withInvoiceStatus(
+      {
+        ...input,
+        id,
+        number,
+        payments: input.payments ?? current?.payments ?? [],
+        createdAt: current?.createdAt ?? todayISO(),
+      },
+      get().profile.vatRegistered,
+    );
     set((s) => ({
       invoices: current
         ? s.invoices.map((e) => (e.id === id ? row : e))
@@ -264,7 +267,9 @@ export const useMoney = create<MoneyStore>()((set, get) => ({
   updateInvoice: (id, patch) => {
     set((s) => ({
       invoices: s.invoices.map((e) =>
-        e.id === id ? withInvoiceStatus({ ...e, ...patch }) : e,
+        e.id === id
+          ? withInvoiceStatus({ ...e, ...patch }, s.profile.vatRegistered)
+          : e,
       ),
     }));
     persist(get, true);
@@ -293,6 +298,10 @@ export const useMoney = create<MoneyStore>()((set, get) => ({
       items: est.items.map((item) => ({ ...item, id: uid() })),
       notes: est.notes,
       taxPercent: est.taxPercent,
+      withholdTax: false,
+      showUsd: est.showUsd,
+      usdRate: est.usdRate,
+      usdAsOf: est.usdAsOf,
       payments: [],
     });
   },
@@ -395,7 +404,7 @@ export const useMoney = create<MoneyStore>()((set, get) => ({
       status: "draft",
       items,
       notes: "From tracked time.",
-      taxPercent: 0,
+      taxPercent: get().profile.vatRegistered ? 18 : 0,
       payments: [],
     });
   },
@@ -418,8 +427,11 @@ export function useRecommendedRate(): number {
   return computeRates(rate).recommended;
 }
 
-export function derivedInvoiceStatus(inv: Invoice): InvoiceStatus {
-  const total = grandTotal(inv.items, inv.taxPercent);
+export function derivedInvoiceStatus(
+  inv: Invoice,
+  vatRegistered = false,
+): InvoiceStatus {
+  const total = grandTotal(inv.items, vatRegistered ? inv.taxPercent : 0);
   const paid = amountPaid(inv.payments);
   if (inv.status === "draft" && paid <= 0) return "draft";
   if (total > 0 && paid >= total) return "paid";

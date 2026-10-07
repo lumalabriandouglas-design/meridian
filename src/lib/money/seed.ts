@@ -1,6 +1,6 @@
 import { addDaysISO } from "@/lib/utils";
 import type { MoneyState } from "./types";
-import { DEFAULT_RATE, emptyDesk } from "./empty-desk";
+import { DEFAULT_RATE, DEFAULT_TERMS, emptyDesk } from "./empty-desk";
 import { ADMIN_EMAIL } from "./admin";
 import { SHIPPED_WORK, workLines } from "./works";
 
@@ -42,6 +42,8 @@ export function createSeed(): MoneyState {
   const invDrape = "inv-drape";
   const invStock = "inv-stock";
   const estHymns = "est-hymns";
+  const depositPercent = 50;
+  const startOf = (price: number) => Math.round((price * depositPercent) / 100);
 
   return {
     profile: {
@@ -52,10 +54,20 @@ export function createSeed(): MoneyState {
       address: "",
       city: "Kampala, Uganda",
       currency: "UGX",
-      paymentTerms: "40% to start, remainder on launch. Estimates valid 14 days.",
+      paymentTerms: DEFAULT_TERMS,
       paymentNote: "",
       taxId: "",
-      depositPercent: 40,
+      depositPercent,
+      vatRegistered: false,
+      mtnNumber: "",
+      mtnName: "",
+      airtelNumber: "",
+      airtelName: "",
+      bankName: "",
+      bankAccountName: "",
+      bankAccountNumber: "",
+      bankBranch: "",
+      bankSwift: "",
     },
     rate: { ...DEFAULT_RATE },
     clients: [
@@ -110,9 +122,10 @@ export function createSeed(): MoneyState {
         status: "accepted",
         items: seededLines(binti, "est-binti"),
         notes:
-          "Site like the one we shipped: story, looks, WhatsApp. Public floor stays quiet. 40% to start.",
+          "Site like the one we shipped: story, looks, WhatsApp. Public floor stays quiet. " +
+          `${depositPercent}% to start.`,
         taxPercent: 0,
-        depositPercent: 40,
+        depositPercent,
         stackLabel: "",
         showStack: false,
         hours: 48,
@@ -133,7 +146,7 @@ export function createSeed(): MoneyState {
         notes:
           "Marketplace for Kampala ateliers. Catalogue, showrooms, a bag. Remainder on launch.",
         taxPercent: 0,
-        depositPercent: 40,
+        depositPercent,
         stackLabel: "",
         showStack: false,
         hours: 96,
@@ -154,7 +167,7 @@ export function createSeed(): MoneyState {
         notes:
           "Luganda and English from one codebase. Audio and setlists. Extra language is the hymnal itself.",
         taxPercent: 0,
-        depositPercent: 40,
+        depositPercent,
         stackLabel: "",
         showStack: false,
         hours: 70,
@@ -181,15 +194,15 @@ export function createSeed(): MoneyState {
             id: "pay-binti-1",
             number: "RCP-0101",
             date: addDaysISO(-30),
-            amount: 2_060_000,
+            amount: startOf(binti.price),
             method: "momo",
-            note: "40% to start.",
+            note: `${depositPercent}% to start.`,
           },
           {
             id: "pay-binti-2",
             number: "RCP-0102",
             date: addDaysISO(-16),
-            amount: 3_090_000,
+            amount: binti.price - startOf(binti.price),
             method: "bank",
             note: "Remainder on launch.",
           },
@@ -215,15 +228,15 @@ export function createSeed(): MoneyState {
             id: "pay-drape-1",
             number: "RCP-0094",
             date: addDaysISO(-55),
-            amount: 4_800_000,
+            amount: startOf(drape.price),
             method: "momo",
-            note: "40% to start.",
+            note: `${depositPercent}% to start.`,
           },
           {
             id: "pay-drape-2",
             number: "RCP-0095",
             date: addDaysISO(-41),
-            amount: 7_200_000,
+            amount: drape.price - startOf(drape.price),
             method: "bank",
             note: "Remainder on launch.",
           },
@@ -249,9 +262,9 @@ export function createSeed(): MoneyState {
             id: "pay-stock-1",
             number: "RCP-0103",
             date: addDaysISO(-9),
-            amount: 3_800_000,
+            amount: startOf(stock.price),
             method: "momo",
-            note: "40% deposit.",
+            note: `${depositPercent}% deposit.`,
           },
         ],
         createdAt: addDaysISO(-9),

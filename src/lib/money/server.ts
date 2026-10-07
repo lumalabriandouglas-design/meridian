@@ -3,7 +3,7 @@ import { authMiddleware } from "@/lib/auth/middleware";
 import { getSql } from "@/lib/db";
 import { grandTotal } from "./calc";
 import { deskForAccount, emptyDesk } from "./seed";
-import type { Invoice, MoneyState, Payment, PaymentMethod } from "./types";
+import type { Invoice, MoneyState, Payment, PaymentMethod, Profile, RateInputs } from "./types";
 
 function asPayment(raw: unknown): Payment | null {
   if (!raw || typeof raw !== "object") return null;
@@ -14,6 +14,7 @@ function asPayment(raw: unknown): Payment | null {
     p.method === "bank" ||
     p.method === "cash" ||
     p.method === "card" ||
+    p.method === "wht" ||
     p.method === "other"
       ? p.method
       : "momo";
@@ -52,6 +53,21 @@ function normalizeInvoice(raw: unknown): Invoice | null {
   return { ...inv, payments };
 }
 
+function isLegacyRate(rate: Partial<RateInputs> | undefined): boolean {
+  if (!rate) return false;
+  return (
+    rate.monthlyTakeHome === 8_000_000 &&
+    rate.overheadMonthly === 1_500_000 &&
+    rate.weeksOff === 4 &&
+    rate.hoursPerWeek === 30 &&
+    rate.utilization === 0.65 &&
+    rate.taxRate === 0.3 &&
+    rate.profitMargin === 0.2 &&
+    rate.currentRate === 80_000 &&
+    !rate.taxManual
+  );
+}
+
 function parseState(raw: unknown): MoneyState {
   const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
   const base = emptyDesk();
@@ -60,9 +76,27 @@ function parseState(raw: unknown): MoneyState {
   const invoices = Array.isArray(p.invoices)
     ? p.invoices.map(normalizeInvoice).filter((i): i is Invoice => Boolean(i))
     : [];
+  const savedProfile: Partial<Profile> = p.profile ?? {};
+  const legacyTerms = "40% to start, remainder on launch. Estimates valid 14 days.";
+  const depositWasDefault =
+    savedProfile.paymentTerms === legacyTerms && savedProfile.depositPercent === 40;
+  const profile = {
+    ...base.profile,
+    ...savedProfile,
+    currency: "UGX" as const,
+    ...(depositWasDefault
+      ? {
+          paymentTerms: base.profile.paymentTerms,
+          depositPercent: base.profile.depositPercent,
+        }
+      : {}),
+  };
+  const rate = isLegacyRate(p.rate)
+    ? { ...base.rate }
+    : { ...base.rate, ...p.rate, taxManual: Boolean(p.rate?.taxManual) };
   return {
-    profile: { ...base.profile, ...p.profile },
-    rate: { ...base.rate, ...p.rate },
+    profile,
+    rate,
     clients: Array.isArray(p.clients) ? p.clients : [],
     estimates: Array.isArray(p.estimates) ? p.estimates : [],
     invoices,
