@@ -146,6 +146,22 @@ export function netPayable(total: number, withheld: number): number {
   return Math.max(0, total - withheld);
 }
 
+/** Cash the client still sends. Withholding is not paid by them. */
+export function clientCashDue(input: {
+  total: number;
+  withheld: number;
+  paid: number;
+  whtPaid?: number;
+  trackingPayments: boolean;
+}): number {
+  const withheld = Math.max(0, input.withheld);
+  const whtPaid = Math.min(withheld, Math.max(0, input.whtPaid ?? 0));
+  const whtLeft = withheld - whtPaid;
+  if (!input.trackingPayments) return Math.max(0, input.total - withheld);
+  const balance = Math.max(0, input.total - Math.max(0, input.paid));
+  return Math.max(0, balance - whtLeft);
+}
+
 function clamp(n: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, n));
 }

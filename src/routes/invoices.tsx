@@ -53,11 +53,8 @@ function Invoices() {
           </li>
         ) : (
           invoices.map((row) => {
-            const status = derivedInvoiceStatus(row, profile.vatRegistered);
-            const total = grandTotal(
-              row.items,
-              profile.vatRegistered ? row.taxPercent : 0,
-            );
+            const status = derivedInvoiceStatus(row);
+            const total = grandTotal(row.items, row.taxPercent);
             const paid = amountPaid(row.payments);
             const due = Math.max(0, total - paid);
             return (

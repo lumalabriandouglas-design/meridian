@@ -1,7 +1,22 @@
 import type { MoneyState, Profile, RateInputs } from "./types";
 
-export const DEFAULT_TERMS =
-  "50% to start, balance before launch. Estimate valid 14 days. Prices in UGX.";
+export function termsForDeposit(depositPercent: number): string {
+  const pct = Math.max(0, Math.round(Number.isFinite(depositPercent) ? depositPercent : 0));
+  return `${pct}% to start, balance before launch. Estimate valid 14 days. Prices in UGX.`;
+}
+
+export const DEFAULT_TERMS = termsForDeposit(50);
+
+const LEGACY_TERMS = "40% to start, remainder on launch. Estimates valid 14 days.";
+
+/** True when the sentence is still a generated default, not a custom line. */
+export function isTemplateTerms(text: string | undefined): boolean {
+  const value = text?.trim() ?? "";
+  if (value === LEGACY_TERMS) return true;
+  return /^\d+% to start, balance before launch\. Estimate valid 14 days\. Prices in UGX\.$/.test(
+    value,
+  );
+}
 
 export const DEFAULT_RATE: RateInputs = {
   monthlyTakeHome: 4_000_000,

@@ -25,11 +25,8 @@ export function HomeDesk() {
     profile.email.trim().toLowerCase() === ADMIN_EMAIL.toLowerCase();
 
   const outstanding = invoices.reduce((s, i) => {
-    if (derivedInvoiceStatus(i, profile.vatRegistered) === "paid") return s;
-    const total = grandTotal(
-      i.items,
-      profile.vatRegistered ? i.taxPercent : 0,
-    );
+    if (derivedInvoiceStatus(i) === "paid") return s;
+    const total = grandTotal(i.items, i.taxPercent);
     return s + Math.max(0, total - amountPaid(i.payments));
   }, 0);
   const collected = invoices.reduce((s, i) => s + amountPaid(i.payments), 0);
@@ -158,7 +155,7 @@ export function HomeDesk() {
             </li>
           ) : (
             invoices.slice(0, 4).map((inv) => {
-              const status = derivedInvoiceStatus(inv, profile.vatRegistered);
+              const status = derivedInvoiceStatus(inv);
               return (
                 <li key={inv.id}>
                   <Link
@@ -176,10 +173,7 @@ export function HomeDesk() {
                     </div>
                     <p className="tabular-nums text-sm">
                       {formatMoney(
-                        grandTotal(
-                          inv.items,
-                          profile.vatRegistered ? inv.taxPercent : 0,
-                        ),
+                        grandTotal(inv.items, inv.taxPercent),
                         currency,
                       )}
                     </p>

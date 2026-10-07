@@ -114,8 +114,8 @@ function receiptNumbers(invoices: Invoice[]): string[] {
   return invoices.flatMap((inv) => (inv.payments ?? []).map((p) => p.number));
 }
 
-function withInvoiceStatus(inv: Invoice, vatRegistered: boolean): Invoice {
-  const total = grandTotal(inv.items, vatRegistered ? inv.taxPercent : 0);
+function withInvoiceStatus(inv: Invoice): Invoice {
+  const total = grandTotal(inv.items, inv.taxPercent);
   const paid = amountPaid(inv.payments);
   if (inv.status === "draft" && paid <= 0) return inv;
   if (total > 0 && paid >= total) return { ...inv, status: "paid" };
@@ -245,16 +245,13 @@ export const useMoney = create<MoneyStore>()((set, get) => ({
         "INV",
         get().invoices.map((e) => e.number),
       );
-    const row: Invoice = withInvoiceStatus(
-      {
-        ...input,
-        id,
-        number,
-        payments: input.payments ?? current?.payments ?? [],
-        createdAt: current?.createdAt ?? todayISO(),
-      },
-      get().profile.vatRegistered,
-    );
+    const row: Invoice = withInvoiceStatus({
+      ...input,
+      id,
+      number,
+      payments: input.payments ?? current?.payments ?? [],
+      createdAt: current?.createdAt ?? todayISO(),
+    });
     set((s) => ({
       invoices: current
         ? s.invoices.map((e) => (e.id === id ? row : e))
@@ -268,7 +265,7 @@ export const useMoney = create<MoneyStore>()((set, get) => ({
     set((s) => ({
       invoices: s.invoices.map((e) =>
         e.id === id
-          ? withInvoiceStatus({ ...e, ...patch }, s.profile.vatRegistered)
+          ? withInvoiceStatus({ ...e, ...patch })
           : e,
       ),
     }));
@@ -427,11 +424,8 @@ export function useRecommendedRate(): number {
   return computeRates(rate).recommended;
 }
 
-export function derivedInvoiceStatus(
-  inv: Invoice,
-  vatRegistered = false,
-): InvoiceStatus {
-  const total = grandTotal(inv.items, vatRegistered ? inv.taxPercent : 0);
+export function derivedInvoiceStatus(inv: Invoice): InvoiceStatus {
+  const total = grandTotal(inv.items, inv.taxPercent);
   const paid = amountPaid(inv.payments);
   if (inv.status === "draft" && paid <= 0) return "draft";
   if (total > 0 && paid >= total) return "paid";

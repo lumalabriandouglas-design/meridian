@@ -5,7 +5,7 @@ import { MoneyField } from "@/components/money-field";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { computeRates } from "@/lib/money/calc";
-import { RATE_PRESETS } from "@/lib/money/empty-desk";
+import { DEFAULT_RATE, RATE_PRESETS } from "@/lib/money/empty-desk";
 import { formatHours, formatMoney } from "@/lib/money/format";
 import { useMoney } from "@/lib/money/store";
 import { Button } from "@/components/ui/button";
@@ -44,6 +44,10 @@ function RateLab() {
                   setRate({
                     monthlyTakeHome: preset.monthlyTakeHome,
                     overheadMonthly: preset.overheadMonthly,
+                    weeksOff: DEFAULT_RATE.weeksOff,
+                    hoursPerWeek: DEFAULT_RATE.hoursPerWeek,
+                    utilization: DEFAULT_RATE.utilization,
+                    profitMargin: DEFAULT_RATE.profitMargin,
                     taxManual: false,
                   })
                 }

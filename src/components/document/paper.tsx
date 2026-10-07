@@ -1,5 +1,6 @@
 import {
   amountPaid,
+  clientCashDue,
   depositDue,
   itemsSubtotal,
   MOMO_TX_MAX,
@@ -39,6 +40,8 @@ export type PaperDoc = {
   showUsd?: boolean;
   usdRate?: number;
   usdAsOf?: string;
+  /** Withholding already recorded as a payment, so it is not subtracted twice. */
+  whtPaid?: number;
 };
 
 export function DocumentPaper({
@@ -53,7 +56,7 @@ export function DocumentPaper({
   className?: string;
 }) {
   const sub = itemsSubtotal(doc.items);
-  const taxPercent = profile.vatRegistered ? doc.taxPercent : 0;
+  const taxPercent = Math.max(0, doc.taxPercent || 0);
   const tax = taxAmount(sub, taxPercent);
   const total = sub + tax;
   const withheld = withholdingAmount(sub, doc.withholdTax);
@@ -67,12 +70,18 @@ export function DocumentPaper({
   const balance = Math.max(0, total - paid);
   const settled = showPaid && total > 0 && paid >= total;
   const kindLabel =
-    doc.kindLabel === "Invoice" && profile.vatRegistered ? "VAT invoice" : doc.kindLabel;
+    doc.kindLabel === "Invoice" && taxPercent > 0 ? "VAT invoice" : doc.kindLabel;
   const payTo = paymentLines(profile);
-  const dueNow = showPaid ? balance : total;
+  const clientPays = clientCashDue({
+    total,
+    withheld: doc.withholdTax ? withheld : 0,
+    paid,
+    whtPaid: doc.whtPaid,
+    trackingPayments: showPaid,
+  });
   const usd =
     doc.showUsd && (doc.usdRate ?? 0) > 0
-      ? formatUsdLine(total, doc.usdRate ?? 0, doc.usdAsOf ?? "")
+      ? formatUsdLine(doc.withholdTax ? net : total, doc.usdRate ?? 0, doc.usdAsOf ?? "")
       : "";
 
   return (
@@ -92,7 +101,7 @@ export function DocumentPaper({
               .filter(Boolean)
               .join("\n")}
           </p>
-          {profile.vatRegistered && profile.taxId ? (
+          {(taxPercent > 0 || profile.vatRegistered) && profile.taxId ? (
             <p className="mt-2 text-sm text-paper-muted">TIN {profile.taxId}</p>
           ) : null}
         </div>
@@ -209,7 +218,7 @@ export function DocumentPaper({
           {payTo.join("\n")}
         </p>
       ) : null}
-      {dueNow > MOMO_TX_MAX ? (
+      {clientPays > MOMO_TX_MAX ? (
         <p className="mt-2 max-w-prose text-sm text-paper-muted">
           Mobile money max is UGX 5M per transaction. Pay in parts or by bank.
         </p>
@@ -235,7 +244,7 @@ export function ReceiptPaper({
   payment: Payment;
   className?: string;
 }) {
-  const taxPercent = profile.vatRegistered ? invoice.taxPercent : 0;
+  const taxPercent = Math.max(0, invoice.taxPercent || 0);
   const sub = itemsSubtotal(invoice.items);
   const total = sub + taxAmount(sub, taxPercent);
   const withheld = withholdingAmount(sub, invoice.withholdTax);
@@ -245,9 +254,23 @@ export function ReceiptPaper({
   const settled = total > 0 && paid >= total;
   const payTo = paymentLines(profile);
   const certificate = payment.method === "wht";
+  const whtPaid = (invoice.payments ?? [])
+    .filter((p) => p.method === "wht")
+    .reduce((sum, p) => sum + Math.max(0, p.amount), 0);
+  const clientPays = clientCashDue({
+    total,
+    withheld: invoice.withholdTax ? withheld : 0,
+    paid,
+    whtPaid,
+    trackingPayments: true,
+  });
   const usd =
     invoice.showUsd && (invoice.usdRate ?? 0) > 0
-      ? formatUsdLine(total, invoice.usdRate ?? 0, invoice.usdAsOf ?? "")
+      ? formatUsdLine(
+          invoice.withholdTax ? net : total,
+          invoice.usdRate ?? 0,
+          invoice.usdAsOf ?? "",
+        )
       : "";
 
   return (
@@ -267,7 +290,7 @@ export function ReceiptPaper({
               .filter(Boolean)
               .join("\n")}
           </p>
-          {profile.vatRegistered && profile.taxId ? (
+          {(taxPercent > 0 || profile.vatRegistered) && profile.taxId ? (
             <p className="mt-2 text-sm text-paper-muted">TIN {profile.taxId}</p>
           ) : null}
         </div>
@@ -314,7 +337,7 @@ export function ReceiptPaper({
           settled ? "text-4xl" : "text-3xl",
         )}
       >
-        {certificate ? "WHT certificate" : settled ? "Paid in full" : "Payment received"}
+        {settled ? "Paid in full" : certificate ? "WHT certificate" : "Payment received"}
       </p>
 
       <section className="mt-8 ml-auto w-full max-w-xs space-y-2 text-sm">
@@ -349,7 +372,7 @@ export function ReceiptPaper({
           {payTo.join("\n")}
         </p>
       ) : null}
-      {balance > MOMO_TX_MAX ? (
+      {clientPays > MOMO_TX_MAX ? (
         <p className="mt-2 max-w-prose text-sm text-paper-muted">
           Mobile money max is UGX 5M per transaction. Pay in parts or by bank.
         </p>

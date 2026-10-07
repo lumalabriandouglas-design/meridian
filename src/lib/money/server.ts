@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { getSql } from "@/lib/db";
 import { grandTotal } from "./calc";
+import { isTemplateTerms, termsForDeposit } from "./empty-desk";
 import { deskForAccount, emptyDesk } from "./seed";
 import type { Invoice, MoneyState, Payment, PaymentMethod, Profile, RateInputs } from "./types";
 
@@ -28,12 +29,27 @@ function asPayment(raw: unknown): Payment | null {
   };
 }
 
+/** d9007ba re-split these real receipts 50/50. Put the paid amounts back. */
+const RESTORED_RECEIPTS: Record<string, { from: number; amount: number; note: string }> = {
+  "pay-binti-1": { from: 2_575_000, amount: 2_060_000, note: "40% to start." },
+  "pay-binti-2": { from: 2_575_000, amount: 3_090_000, note: "Remainder on launch." },
+  "pay-drape-1": { from: 6_000_000, amount: 4_800_000, note: "40% to start." },
+  "pay-drape-2": { from: 6_000_000, amount: 7_200_000, note: "Remainder on launch." },
+  "pay-stock-1": { from: 4_750_000, amount: 3_800_000, note: "40% deposit." },
+};
+
+function restoreReceipt(p: Payment): Payment {
+  const row = RESTORED_RECEIPTS[p.id];
+  if (!row || p.amount !== row.from) return p;
+  return { ...p, amount: row.amount, note: row.note };
+}
+
 function normalizeInvoice(raw: unknown): Invoice | null {
   if (!raw || typeof raw !== "object") return null;
   const inv = raw as Invoice;
   if (!inv.id || !Array.isArray(inv.items)) return null;
   let payments = Array.isArray(inv.payments)
-    ? inv.payments.map(asPayment).filter((p): p is Payment => Boolean(p))
+    ? inv.payments.map(asPayment).filter((p): p is Payment => Boolean(p)).map(restoreReceipt)
     : [];
   if (payments.length === 0 && inv.status === "paid") {
     const total = grandTotal(inv.items, inv.taxPercent || 0);
@@ -80,16 +96,19 @@ function parseState(raw: unknown): MoneyState {
   const legacyTerms = "40% to start, remainder on launch. Estimates valid 14 days.";
   const depositWasDefault =
     savedProfile.paymentTerms === legacyTerms && savedProfile.depositPercent === 40;
+  const depositPercent = depositWasDefault
+    ? base.profile.depositPercent
+    : (savedProfile.depositPercent ?? base.profile.depositPercent);
+  const paymentTerms =
+    depositWasDefault || isTemplateTerms(savedProfile.paymentTerms)
+      ? termsForDeposit(depositPercent)
+      : (savedProfile.paymentTerms ?? base.profile.paymentTerms);
   const profile = {
     ...base.profile,
     ...savedProfile,
     currency: "UGX" as const,
-    ...(depositWasDefault
-      ? {
-          paymentTerms: base.profile.paymentTerms,
-          depositPercent: base.profile.depositPercent,
-        }
-      : {}),
+    depositPercent,
+    paymentTerms,
   };
   const rate = isLegacyRate(p.rate)
     ? { ...base.rate }

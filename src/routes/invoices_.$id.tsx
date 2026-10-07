@@ -67,14 +67,17 @@ function InvoiceDetail() {
   }
 
   const row = invoice;
-  const status = derivedInvoiceStatus(row, profile.vatRegistered);
-  const taxPercent = profile.vatRegistered ? row.taxPercent : 0;
+  const status = derivedInvoiceStatus(row);
+  const taxPercent = row.taxPercent;
   const total = grandTotal(row.items, taxPercent);
   const paid = amountPaid(row.payments);
   const balance = Math.max(0, total - paid);
   const deposit = depositDue(total, profile.depositPercent);
   const wht = withholdingAmount(itemsSubtotal(row.items), row.withholdTax);
   const whtRecorded = (row.payments ?? []).some((p) => p.method === "wht");
+  const whtPaid = (row.payments ?? [])
+    .filter((p) => p.method === "wht")
+    .reduce((sum, p) => sum + Math.max(0, p.amount), 0);
   const amount = payAmount ?? balance;
 
   function patch(next: Partial<Invoice>) {
@@ -179,7 +182,7 @@ function InvoiceDetail() {
                 ))}
               </select>
             </Field>
-            {profile.vatRegistered ? (
+            {profile.vatRegistered || row.taxPercent > 0 ? (
               <Field label="VAT %">
                 <Input
                   type="number"
@@ -490,6 +493,7 @@ function InvoiceDetail() {
               taxPercent: row.taxPercent,
               paidToDate: paid,
               withholdTax: row.withholdTax,
+              whtPaid,
               showUsd: row.showUsd,
               usdRate: row.usdRate,
               usdAsOf: row.usdAsOf,

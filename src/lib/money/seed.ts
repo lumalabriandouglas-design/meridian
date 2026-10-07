@@ -43,7 +43,6 @@ export function createSeed(): MoneyState {
   const invStock = "inv-stock";
   const estHymns = "est-hymns";
   const depositPercent = 50;
-  const startOf = (price: number) => Math.round((price * depositPercent) / 100);
 
   return {
     profile: {
@@ -194,15 +193,15 @@ export function createSeed(): MoneyState {
             id: "pay-binti-1",
             number: "RCP-0101",
             date: addDaysISO(-30),
-            amount: startOf(binti.price),
+            amount: 2_060_000,
             method: "momo",
-            note: `${depositPercent}% to start.`,
+            note: "40% to start.",
           },
           {
             id: "pay-binti-2",
             number: "RCP-0102",
             date: addDaysISO(-16),
-            amount: binti.price - startOf(binti.price),
+            amount: 3_090_000,
             method: "bank",
             note: "Remainder on launch.",
           },
@@ -228,15 +227,15 @@ export function createSeed(): MoneyState {
             id: "pay-drape-1",
             number: "RCP-0094",
             date: addDaysISO(-55),
-            amount: startOf(drape.price),
+            amount: 4_800_000,
             method: "momo",
-            note: `${depositPercent}% to start.`,
+            note: "40% to start.",
           },
           {
             id: "pay-drape-2",
             number: "RCP-0095",
             date: addDaysISO(-41),
-            amount: drape.price - startOf(drape.price),
+            amount: 7_200_000,
             method: "bank",
             note: "Remainder on launch.",
           },
@@ -262,9 +261,9 @@ export function createSeed(): MoneyState {
             id: "pay-stock-1",
             number: "RCP-0103",
             date: addDaysISO(-9),
-            amount: startOf(stock.price),
+            amount: 3_800_000,
             method: "momo",
-            note: `${depositPercent}% deposit.`,
+            note: "40% deposit.",
           },
         ],
         createdAt: addDaysISO(-9),

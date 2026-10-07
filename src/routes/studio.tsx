@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { isTemplateTerms, termsForDeposit } from "@/lib/money/empty-desk";
 import { useMoney } from "@/lib/money/store";
 
 export const Route = createFileRoute("/studio")({ component: Studio });
@@ -65,17 +66,25 @@ function Studio() {
               min={0}
               max={100}
               value={profile.depositPercent}
-              onChange={(e) =>
-                setProfile({ depositPercent: Number(e.target.value) || 0 })
-              }
+              onChange={(e) => {
+                const depositPercent = Number(e.target.value) || 0;
+                const current = profile.paymentTerms.trim();
+                setProfile({
+                  depositPercent,
+                  ...(!current || isTemplateTerms(current)
+                    ? { paymentTerms: termsForDeposit(depositPercent) }
+                    : {}),
+                });
+              }}
             />
           </Field>
           <div className="sm:col-span-2 flex items-center justify-between gap-3 rounded-md bg-secondary px-3 py-3">
             <div>
               <p className="text-sm">VAT registered</p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Uganda’s VAT threshold is UGX 300M a year. Off: nothing is
-                printed. On: invoices default to 18% and show your TIN.
+                Uganda’s VAT threshold is UGX 300M a year. This only sets the
+                default on a new invoice: 18% when on, none when off. Invoices
+                already saved keep their own VAT.
               </p>
             </div>
             <Switch
@@ -156,6 +165,13 @@ function Studio() {
             <Input
               value={profile.bankSwift}
               onChange={(e) => setProfile({ bankSwift: e.target.value })}
+            />
+          </Field>
+          <Field label="Payment note" className="sm:col-span-2">
+            <Input
+              value={profile.paymentNote}
+              onChange={(e) => setProfile({ paymentNote: e.target.value })}
+              placeholder="Printed only when mobile money and bank are empty"
             />
           </Field>
         </div>
